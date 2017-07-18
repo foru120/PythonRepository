@@ -1,0 +1,3 @@
+apple|500|30
+banana|300|10
+orange|400|24

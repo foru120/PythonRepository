@@ -1,0 +1,1 @@
+from smtpkg5.camera import camera

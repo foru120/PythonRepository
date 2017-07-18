@@ -1,0 +1,7 @@
+print("escape sequence '\\a' \a")
+print("escape \bsequence '\\b'")
+print("escape sequence '\\f' \f")
+print("escape sequence '\\n' \n")
+print("escape \rsequence '\\r' ")
+print("escape \tsequence '\\t'")
+print("escape sequence '\\v' \v")

@@ -1,0 +1,1 @@
+import GodOfPython.P10_ModulePackage.mypackage
