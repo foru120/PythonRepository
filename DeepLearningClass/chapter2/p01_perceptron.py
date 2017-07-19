@@ -92,3 +92,50 @@ print('x1: 0, x2: 0 -> ', XOR(0, 0))
 print('x1: 0, x2: 1 -> ', XOR(0, 1))
 print('x1: 1, x2: 0 -> ', XOR(1, 0))
 print('x1: 1, x2: 1 -> ', XOR(1, 1))
+
+import numpy as np
+
+def andPerceptron(x1, x2):
+    w1, w2, theta = 0.5, 0.5, 0.7
+    netInput = x1*w1 + x2*w2
+    if netInput <= theta:
+        return 0
+    elif netInput > theta:
+        return 1
+
+def nandPerceptron(x1, x2):
+    w1, w2, theta = -0.5, -0.5, -0.7
+    netInput = x1*w1 + x2*w2
+    if netInput <= theta:
+        return 0
+    elif netInput > theta:
+        return 1
+
+def orPerceptron(x1, x2):
+    w1, w2, bias = 0.5, 0.5, -0.2
+    netInput = x1*w1 + x2*w2 + bias
+    if netInput <= 0:
+        return 0
+    else:
+        return 1
+
+def xorPerceptron(x1, x2):
+    return andPerceptron(orPerceptron(x1, x2), nandPerceptron(x1, x2))
+
+inputData = np.array([[0,0],[0,1],[1,0],[1,1]])
+
+print("---And Perceptron---")
+for xs1 in inputData:
+    print(str(xs1) + " ==> " + str(andPerceptron(xs1[0], xs1[1])))
+
+print("---Nand Perceptron---")
+for xs2 in inputData:
+    print(str(xs2) + " ==> " + str(nandPerceptron(xs2[0], xs2[1])))
+
+print("---Or Perceptron---")
+for xs3 in inputData:
+    print(str(xs3) + " ==> " + str(orPerceptron(xs3[0], xs3[1])))
+
+print("---XOr Perceptron---")
+for xs3 in inputData:
+    print(str(xs3) + " ==> " + str(xorPerceptron(xs3[0], xs3[1])))

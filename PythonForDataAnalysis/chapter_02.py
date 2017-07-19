@@ -96,3 +96,20 @@ count_subset.plot(kind='barh', stacked=True)
 # - 각 행에서 총합을 1로 정규화한 후 표를 만든다.
 normed_subset = count_subset.div(count_subset.sum(1), axis=0)
 normed_subset.plot(kind='barh', stacked=True)
+
+# ▣ 2.2 MovieLens 의 영화 평점 데이터
+import pandas as pd
+import os
+encoding = 'latin1'
+
+upath = os.path.expanduser('ch02/movielens/users.dat')
+rpath = os.path.expanduser('ch02/movielens/ratings.dat')
+mpath = os.path.expanduser('ch02/movielens/movies.dat')
+
+unames = ['user_id', 'gender', 'age', 'occupation', 'zip']
+rnames = ['user_id', 'movie_id', 'rating', 'timestamp']
+mnames = ['movie_id', 'title', 'genres']
+
+users = pd.read_csv(upath, sep='::', header=None, names=unames, encoding=encoding)
+ratings = pd.read_csv(rpath, sep='::', header=None, names=rnames, encoding=encoding)
+movies = pd.read_csv(mpath, sep='::', header=None, names=mnames, encoding=encoding)
