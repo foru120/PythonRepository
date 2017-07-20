@@ -146,7 +146,7 @@ with tf.Session() as sess:
         for start_idx in range(0, 2000, batch_size):
             test_x_batch, test_y_batch = total_x[start_idx:start_idx + batch_size], total_y[start_idx:start_idx + batch_size]
             test_size = len(test_y_batch)
-            predictions = np.zeros(test_size * 10).reshape(test_size, 10)
+            predictions = np.zeros(test_size * 2).reshape(test_size, 2)
 
             model_result = np.zeros(test_size*2, dtype=np.int).reshape(test_size, 2)
             model_result[:, 0] = range(0, test_size)
