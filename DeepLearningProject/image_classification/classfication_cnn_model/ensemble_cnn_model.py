@@ -89,88 +89,80 @@ class Model:
             ############################################################################################################
             ## ▣ Convolution 계층 - 1
             ##  ⊙ 합성곱 계층 → filter: (7, 7), padding: VALID output: 20 개, 초기값: He
-            ##  ⊙ 편향        → shape: 20, 초기값: 0.001
             ##  ⊙ 활성화 함수 → Parametric Relu
             ##  ⊙ 풀링 계층   → Max Pooling
             ##  ⊙ 드롭 아웃 구현
             ############################################################################################################
             with tf.name_scope('conv_layer1') as scope:
-                self.W1 = tf.get_variable(name='W1', shape=[7, 7, 1, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b1 = tf.Variable(tf.constant(value=0.001, shape=[40]), name='b1')
-                self.L1 = tf.nn.conv2d(input=X_img, filter=self.W1, strides=[1, 1, 1, 1], padding='VALID')  # 126x126 -> 120x120
-                # self.L1 = tf.nn.relu(self.L1, name='R1')
-                self.L1 = self.parametric_relu(self.L1 + self.b1, 'R1')
-                self.L1 = tf.nn.max_pool(value=self.L1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')  # 120x120 -> 60x60
+                self.W1_sub = tf.get_variable(name='W1_sub', shape=[3, 3, 1, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L1_sub = tf.nn.conv2d(input=X_img, filter=self.W1_sub, strides=[1, 1, 1, 1], padding='VALID')  # 126x126 -> 122x122
+                self.L1_sub = self.parametric_relu(self.L1_sub, 'R1_sub')
+                self.W2_sub = tf.get_variable(name='W2_sub', shape=[3, 3, 20, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L2_sub = tf.nn.conv2d(input=self.L1_sub, filter=self.W2_sub, strides=[1, 1, 1, 1], padding='VALID')  # 122x122 -> 120x120
+                self.L2_sub = self.parametric_relu(self.L2_sub, 'R2_sub')
+                self.W3_sub = tf.get_variable(name='W3_sub', shape=[3, 3, 20, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L3_sub = tf.nn.conv2d(input=self.L2_sub, filter=self.W3_sub, strides=[1, 1, 1, 1], padding='VALID')  # 122x122 -> 120x120
+                self.L3_sub = self.parametric_relu(self.L3_sub, 'R3_sub')
+                self.L1 = tf.nn.max_pool(value=self.L3_sub, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 120x120 -> 60x60
                 self.L1 = tf.layers.dropout(inputs=self.L1, rate=self.dropout_rate, training=self.training)
 
             ############################################################################################################
             ## ▣ Convolution 계층 - 2
             ##  ⊙ 합성곱 계층 → filter: (3, 3), output: 40 개, 초기값: He
-            ##  ⊙ 편향        → shape: 40, 초기값: 0.001
             ##  ⊙ 활성화 함수 → Parametric Relu
             ##  ⊙ 풀링 계층   → Max Pooling
             ##  ⊙ 드롭 아웃 구현
             ############################################################################################################
             with tf.name_scope('conv_layer2') as scope:
-                self.W2 = tf.get_variable(name='W2', shape=[3, 3, 40, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b2 = tf.Variable(tf.constant(value=0.001, shape=[80]), name='b2')
+                self.W2 = tf.get_variable(name='W2', shape=[3, 3, 20, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L2 = tf.nn.conv2d(input=self.L1, filter=self.W2, strides=[1, 1, 1, 1], padding='SAME')
-                # self.L2 = tf.nn.relu(self.L2, name='R2')
-                self.L2 = self.parametric_relu(self.L2 + self.b2, 'R2')
-                self.L2 = tf.nn.max_pool(value=self.L2, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')  # 60x60 -> 30x30
+                self.L2 = self.parametric_relu(self.L2, 'R2')
+                self.L2 = tf.nn.max_pool(value=self.L2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 60x60 -> 30x30
                 self.L2 = tf.layers.dropout(inputs=self.L2, rate=self.dropout_rate, training=self.training)
 
             ############################################################################################################
             ## ▣ Convolution 계층 - 3
             ##  ⊙ 합성곱 계층 → filter: (3, 3), output: 80 개, 초기값: He
-            ##  ⊙ 편향        → shape: 80, 초기값: 0.001
             ##  ⊙ 활성화 함수 → Parametric Relu
             ##  ⊙ 풀링 계층   → Max Pooling
             ##  ⊙ 드롭 아웃 구현
             ############################################################################################################
             with tf.name_scope('conv_layer3') as scope:
-                self.W3 = tf.get_variable(name='W3', shape=[3, 3, 80, 160], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b3 = tf.Variable(tf.constant(value=0.001, shape=[160]), name='b3')
+                self.W3 = tf.get_variable(name='W3', shape=[3, 3, 40, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L3 = tf.nn.conv2d(input=self.L2, filter=self.W3, strides=[1, 1, 1, 1], padding='SAME')
-                # self.L3 = tf.nn.relu(self.L3, name='R3')
-                self.L3 = self.parametric_relu(self.L3 + self.b3, 'R3')
-                self.L3 = tf.nn.max_pool(value=self.L3, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')  # 30x30 -> 15x15
+                self.L3 = self.parametric_relu(self.L3, 'R3')
+                self.L3 = tf.nn.max_pool(value=self.L3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 30x30 -> 15x15
                 self.L3 = tf.layers.dropout(inputs=self.L3, rate=self.dropout_rate, training=self.training)
 
             ############################################################################################################
             ## ▣ Convolution 계층 - 4
             ##  ⊙ 합성곱 계층 → filter: (3, 3), output: 160 개, 초기값: He
-            ##  ⊙ 편향        → shape: 160, 초기값: 0.001
             ##  ⊙ 활성화 함수 → Parametric Relu
             ##  ⊙ 풀링 계층   → Max Pooling
             ##  ⊙ 드롭 아웃 구현
             ############################################################################################################
             with tf.name_scope('conv_layer4') as scope:
-                self.W4 = tf.get_variable(name='W4', shape=[3, 3, 160, 320], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b4 = tf.Variable(tf.constant(value=0.001, shape=[320]), name='b4')
+                self.W4 = tf.get_variable(name='W4', shape=[3, 3, 80, 160], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L4 = tf.nn.conv2d(input=self.L3, filter=self.W4, strides=[1, 1, 1, 1], padding='SAME')
-                # self.L4 = tf.nn.relu(self.L4, name='R4')
-                self.L4 = self.parametric_relu(self.L4 + self.b4, 'R4')
-                self.L4 = tf.nn.max_pool(value=self.L4, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')  # 15x15 -> 8x8
+                self.L4 = self.parametric_relu(self.L4, 'R4')
+                self.L4 = tf.nn.max_pool(value=self.L4, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 15x15 -> 8x8
                 self.L4 = tf.layers.dropout(inputs=self.L4, rate=self.dropout_rate, training=self.training)
+                # self.L4 = tf.reshape(self.L4, shape=[-1, 8 * 8 * 160])
 
             ############################################################################################################
             ## ▣ Convolution 계층 - 5
             ##  ⊙ 합성곱 계층 → filter: (3, 3), output: 320 개, 초기값: He
-            ##  ⊙ 편향        → shape: 320, 초기값: 0.001
             ##  ⊙ 활성화 함수 → Parametric Relu
             ##  ⊙ 풀링 계층   → Max Pooling
             ##  ⊙ 드롭 아웃 구현
             ############################################################################################################
             with tf.name_scope('conv_layer5') as scope:
-                self.W5 = tf.get_variable(name='W5', shape=[3, 3, 320, 500], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b5 = tf.Variable(tf.constant(value=0.001, shape=[500]), name='b5')
+                self.W5 = tf.get_variable(name='W5', shape=[3, 3, 160, 320], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L5 = tf.nn.conv2d(input=self.L4, filter=self.W5, strides=[1, 1, 1, 1], padding='SAME')
-                # self.L5 = tf.nn.relu(self.L5, name='R5')
-                self.L5 = self.parametric_relu(self.L5 + self.b5, 'R5')
-                self.L5 = tf.nn.max_pool(value=self.L5, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1], padding='SAME')  # 8x8 -> 4x4
+                self.L5 = self.parametric_relu(self.L5, 'R5')
+                self.L5 = tf.nn.max_pool(value=self.L5, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 8x8 -> 4x4
                 self.L5 = tf.layers.dropout(inputs=self.L5, rate=self.dropout_rate, training=self.training)
-                self.L5 = tf.reshape(self.L5, shape=[-1, 4 * 4 * 500])
+                self.L5 = tf.reshape(self.L5, shape=[-1, 4 * 4 * 320])
 
             ############################################################################################################
             ## ▣ fully connected 계층 - 1
@@ -180,9 +172,8 @@ class Model:
             ##  ⊙ 드롭 아웃 구현
             ############################################################################################################
             with tf.name_scope('fc_layer1') as scope:
-                self.W_fc1 = tf.get_variable(name='W_fc1', shape=[4 * 4 * 500, 2000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b_fc1 = tf.Variable(tf.constant(value=0.001, shape=[2000], name='b_fc1'))
-                # self.L5 = tf.nn.relu(tf.matmul(self.L4, self.W5) + self.b5, name='R5')
+                self.W_fc1 = tf.get_variable(name='W_fc1', shape=[4 * 4 * 320, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b_fc1 = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b_fc1'))
                 self.L_fc1 = self.parametric_relu(tf.matmul(self.L5, self.W_fc1) + self.b_fc1, 'R_fc1')
                 self.L_fc1 = tf.layers.dropout(inputs=self.L_fc1, rate=self.dropout_rate, training=self.training)
 
@@ -194,19 +185,18 @@ class Model:
             ##  ⊙ 드롭 아웃 구현
             ############################################################################################################
             with tf.name_scope('fc_layer2') as scope:
-                self.W_fc2 = tf.get_variable(name='W_fc2', shape=[2000, 2000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b_fc2 = tf.Variable(tf.constant(value=0.001, shape=[2000], name='b_fc2'))
-                # self.L6 = tf.nn.relu(tf.matmul(self.L5, self.W6) + self.b6, name='R6')
+                self.W_fc2 = tf.get_variable(name='W_fc2', shape=[1000, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b_fc2 = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b_fc2'))
                 self.L_fc2 = self.parametric_relu(tf.matmul(self.L_fc1, self.W_fc2) + self.b_fc2, 'R_fc2')
                 self.L_fc2 = tf.layers.dropout(inputs=self.L_fc2, rate=self.dropout_rate, training=self.training)
 
             ############################################################################################################
             ## ▣ 출력층
-            ##  ⊙ 가중치      → shape: (625, 10), output: 10 개, 초기값: He
-            ##  ⊙ 편향        → shape: 10, 초기값: 0.001
+            ##  ⊙ 가중치      → shape: (625, 10), output: 2 개, 초기값: He
+            ##  ⊙ 편향        → shape: 2, 초기값: 0.001
             ##  ⊙ 활성화 함수 → Softmax
             ############################################################################################################
-            self.W_out = tf.get_variable(name='W_out', shape=[2000, 2], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            self.W_out = tf.get_variable(name='W_out', shape=[1000, 2], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             self.b_out = tf.Variable(tf.constant(value=0.001, shape=[2], name='b_out'))
             self.logits = tf.matmul(self.L_fc2, self.W_out) + self.b_out
 
@@ -214,8 +204,8 @@ class Model:
         ## ▣ L2-Regularization
         ##  ⊙ λ/(2*N)*Σ(W)²-> (0.001/(2*tf.to_float(tf.shape(self.X)[0])))*tf.reduce_sum(tf.square(self.W7))
         ################################################################################################################
-        self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + (0.001/(2*tf.to_float(tf.shape(self.X)[0])))*tf.reduce_sum(tf.square(self.W_out))
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=0.005).minimize(self.cost)
+        self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + (0.01/(2*tf.to_float(tf.shape(self.Y)[0])))*tf.reduce_sum(tf.square(self.W_out))
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.cost)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), tf.arg_max(self.Y, 1)), dtype=tf.float32))
 
         # self.tensorflow_summary()
@@ -275,7 +265,7 @@ class Model:
         return self.sess.run(self.accuracy, feed_dict={self.X: x_test, self.Y: y_test, self.training: False})
 
     def train(self, x_data, y_data):
-        return self.sess.run([self.cost, self.optimizer], feed_dict={self.X: x_data, self.Y: y_data, self.training: True})
+        return self.sess.run([self.L1, self.L2, self.L3, self.L4, self.L5, self.cost, self.optimizer], feed_dict={self.X: x_data, self.Y: y_data, self.training: True})
 
     ####################################################################################################################
     ## ▣ Parametric Relu or Leaky Relu
@@ -288,3 +278,24 @@ class Model:
         pos = tf.nn.relu(_x)
         neg = alphas * (_x - abs(_x)) * 0.5
         return pos + neg
+
+    ####################################################################################################################
+    ## ▣ Maxout - Created by 지혜승
+    ##  ⊙ Convolution 계층이나 FC 계층에서 활성화 함수 대신 dropout 의 효율을 극대화하기 위해 사용하는 함수
+    ##  ⊙ conv 또는 affine 계층을 거친 값들에 대해 k 개씩 그룹핑을 수행하고 해당 그룹내에서 가장 큰 값을 다음 계층으로
+    ##     보내는 기법
+    ####################################################################################################################
+    def max_out(self, inputs, num_units, axis=None):
+        shape = inputs.get_shape().as_list()
+        if shape[0] is None:
+            shape[0] = -1
+        if axis is None:  # Assume that channel is the last dimension
+            axis = -1
+        num_channels = shape[axis]
+        if num_channels % num_units:
+            raise ValueError(
+                'number of features({}) is not a multiple of num_units({})'.format(num_channels, num_units))
+        shape[axis] = num_units  # m
+        shape += [num_channels // num_units]  # k
+        outputs = tf.reduce_max(tf.reshape(inputs, shape), -1, keep_dims=False)
+        return outputs

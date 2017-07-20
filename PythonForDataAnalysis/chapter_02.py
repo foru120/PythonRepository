@@ -99,12 +99,11 @@ normed_subset.plot(kind='barh', stacked=True)
 
 # ▣ 2.2 MovieLens 의 영화 평점 데이터
 import pandas as pd
-import os
 encoding = 'latin1'
 
-upath = os.path.expanduser('ch02/movielens/users.dat')
-rpath = os.path.expanduser('ch02/movielens/ratings.dat')
-mpath = os.path.expanduser('ch02/movielens/movies.dat')
+upath = 'PythonForDataAnalysis\\ch02\\users.dat'
+rpath = 'PythonForDataAnalysis\\ch02\\ratings.dat'
+mpath = 'PythonForDataAnalysis\\ch02\\movies.dat'
 
 unames = ['user_id', 'gender', 'age', 'occupation', 'zip']
 rnames = ['user_id', 'movie_id', 'rating', 'timestamp']
@@ -113,3 +112,24 @@ mnames = ['movie_id', 'title', 'genres']
 users = pd.read_csv(upath, sep='::', header=None, names=unames, encoding=encoding)
 ratings = pd.read_csv(rpath, sep='::', header=None, names=rnames, encoding=encoding)
 movies = pd.read_csv(mpath, sep='::', header=None, names=mnames, encoding=encoding)
+
+users[:5]
+ratings[:5]
+movies[:5]
+ratings
+
+# - 3 개의 테이블에 대해 merge 수행
+data = pd.merge(pd.merge(ratings, users), movies)
+data
+data.ix[0]
+
+# - 성별에 따른 각 영화의 평균 평점은 pivot_table 메서드를 사용해서 구한다.
+pd.pivot_table()
+mean_ratings = data.pivot_table('rating', index='title', columns='gender', aggfunc='mean')
+mean_ratings[:5]
+
+# - 250 건 이상의 평점 정보가 있는 영화만 추출
+ratings_by_title = data.groupby('title').size()
+ratings_by_title[:10]
+active_titles = ratings_by_title.index[ratings_by_title >= 250]
+active_titles
