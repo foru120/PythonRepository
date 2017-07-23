@@ -31,41 +31,41 @@ class Model:
                 self.L1 = tf.nn.max_pool(value=self.L3_sub, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 26x26 -> 13x13
 
             with tf.name_scope('inception_layer1') as scope:
-                self.L2 = self.inception_model(self.L1, 3, 40, name='inception_layer1')  # 13x13 -> 7x7
+                self.L2 = self.inception_model(self.L1, 3, 60, name='inception_layer1')  # 13x13 -> 7x7
 
             with tf.name_scope('inception_layer2') as scope:
-                self.L3 = self.inception_model(self.L2, 3, 80, name='inception_layer2')  # 7x7 -> 4x4
+                self.L3 = self.inception_model(self.L2, 3, 120, name='inception_layer2')  # 7x7 -> 4x4
 
             with tf.name_scope('conv_layer1') as scope:
-                self.W4 = tf.get_variable(name='W4', shape=[3, 3, 80, 160], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W4 = tf.get_variable(name='W4', shape=[3, 3, 120, 240], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L4 = tf.nn.conv2d(input=self.L3, filter=self.W4, strides=[1, 1, 1, 1], padding='SAME')
-                self.L4 = self.batch_norm(self.L4, shape=160, training=self.training, convl=True, name='conv1_BN')
+                self.L4 = self.batch_norm(self.L4, shape=self.L4.get_shape()[-1], training=self.training, convl=True, name='conv1_BN')
                 self.L4 = self.parametric_relu(self.L4, 'R4')
-                self.L4 = tf.reshape(self.L4, shape=[-1, 4 * 4 * 160])
+                self.L4 = tf.reshape(self.L4, shape=[-1, 4 * 4 * 240])
 
             with tf.name_scope('fc_layer1') as scope:
-                self.W_fc1 = tf.get_variable(name='W_fc1', shape=[4 * 4 * 160, 625], dtype=tf.float32,
+                self.W_fc1 = tf.get_variable(name='W_fc1', shape=[4 * 4 * 240, 1000], dtype=tf.float32,
                                              initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b_fc1 = tf.Variable(tf.constant(value=0.001, shape=[625], name='b_fc1'))
+                self.b_fc1 = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b_fc1'))
                 self.L_fc1 = tf.matmul(self.L4, self.W_fc1) + self.b_fc1
                 self.L_fc1 = self.batch_norm(self.L_fc1, shape=self.L_fc1.get_shape()[-1], training=self.training, convl=False, name='fc1_BN')
                 self.L_fc1 = self.parametric_relu(self.L_fc1, 'R_fc1')
 
             with tf.name_scope('fc_layer2') as scope:
-                self.W_fc2 = tf.get_variable(name='W_fc2', shape=[625, 625], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b_fc2 = tf.Variable(tf.constant(value=0.001, shape=[625], name='b_fc2'))
+                self.W_fc2 = tf.get_variable(name='W_fc2', shape=[1000, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b_fc2 = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b_fc2'))
                 self.L_fc2 = tf.matmul(self.L_fc1, self.W_fc2) + self.b_fc2
                 self.L_fc2 = self.batch_norm(self.L_fc2, shape=self.W_fc2.get_shape()[-1], training=self.training, convl=False, name='fc2_BN')
                 self.L_fc2 = self.parametric_relu(self.L_fc2, 'R_fc2')
 
-            self.W_out = tf.get_variable(name='W_out', shape=[625, 10], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            self.W_out = tf.get_variable(name='W_out', shape=[1000, 10], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             self.b_out = tf.Variable(tf.constant(value=0.001, shape=[10], name='b_out'))
             self.logits = tf.matmul(self.L_fc2, self.W_out) + self.b_out
 
             self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + \
                         (0.01 / (2 * tf.to_float(tf.shape(self.Y)[0]))) * tf.reduce_sum(tf.square(self.W_out))
 
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.cost)
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=0.01).minimize(self.cost)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), tf.arg_max(self.Y, 1)), dtype=tf.float32))
 
     def predict(self, x_test):
