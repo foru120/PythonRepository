@@ -10,7 +10,7 @@ class TwoLayerNet:
     def __init__(self, input_size, hidden_size, output_size, weight_init_std=0.01):
         # 가중치 초기화
         self.params = {}
-        self.params['W1'] = weight_init_std * np.random.randn(input_size, hidden_size)
+        self.params['W1'] = weight_init_std * np.random.randn(input_size, hidden_size)  # 표준 정규 분포를 따르는 난수 생성
         self.params['b1'] = np.zeros(hidden_size)
         self.params['W2'] = weight_init_std * np.random.randn(hidden_size, output_size)
         self.params['b2'] = np.zeros(output_size)
@@ -29,8 +29,8 @@ class TwoLayerNet:
         return x
 
     # x : 입력 데이터, t : 정답 레이블
-    def loss(self, x, t):
-        y = self.predict(x)
+    def loss(self, x, t):  # x : (100, 784), t : (100, 10)
+        y = self.predict(x)  # (100, 10) : 마지막 출력층을 통과한 신경망이 예측한 값
         return self.lastLayer.forward(y, t)  # 마지막 계층인 SoftmaxWithLoss 계층에 대해 forward 수행
 
     def accuracy(self, x, t):
@@ -43,7 +43,7 @@ class TwoLayerNet:
 
     def gradient(self, x, t):
         # forward
-        loss = self.loss(x, t)
+        self.loss(x, t)
 
         # backward
         dout = 1
@@ -59,4 +59,4 @@ class TwoLayerNet:
         grads['W1'], grads['b1'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
         grads['W2'], grads['b2'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
 
-        return grads, loss
+        return grads

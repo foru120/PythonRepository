@@ -7,14 +7,14 @@ class Relu:
         self.mask = None
 
     def forward(self, x):
-        self.mask = (x <= 0)
+        self.mask = (x <= 0)  # 0 을 기준으로 True, False 값을 추출
         out = x.copy()
-        out[self.mask] = 0
+        out[self.mask] = 0  # 0 보다 밑인 값들을 0으로 할당
 
         return out
 
     def backward(self, dout):
-        dout[self.mask] = 0
+        dout[self.mask] = 0  # 역전파 시에 x < 0 이하는 미분값이 0 이므로, x < 0 인 부분은 0으로 할당해준다
         dx = dout
 
         return dx
@@ -25,27 +25,24 @@ class Affine:
         self.b = b
 
         self.x = None
-        self.original_x_shape = None
+
         # 가중치와 편향 매개변수의 미분
         self.dW = None
         self.db = None
 
     def forward(self, x):
-        # 텐서 대응
-        self.original_x_shape = x.shape
-        x = x.reshape(x.shape[0], -1)
         self.x = x
-
         out = np.dot(self.x, self.W) + self.b
 
         return out
 
     def backward(self, dout):
+        # 순전파 ▷ X : (2, 3), W : (3, 4) -> XㆍY : (2, 4)
+        # 역전파 ▷ XㆍY : (2, 4) -> X : (2, 4)ㆍWＴ, W : XＴㆍ(2, 4)
         dx = np.dot(dout, self.W.T)
         self.dW = np.dot(self.x.T, dout)
-        self.db = np.sum(dout, axis=0)
+        self.db = np.sum(dout, axis=0)  # 편향은 순전파시 각각의 데이터에 더해지므로, 역전파시에 각 축의 값이 편향의 원소에 모여야 한다
 
-        dx = dx.reshape(*self.original_x_shape)  # 입력 데이터 모양 변경(텐서 대응)
         return dx
 
 class SoftmaxWithLoss:
@@ -63,11 +60,5 @@ class SoftmaxWithLoss:
 
     def backward(self, dout=1):
         batch_size = self.t.shape[0]
-        if self.t.size == self.y.size:  # 정답 레이블이 원-핫 인코딩 형태일 때
-            dx = (self.y - self.t) / batch_size
-        else:
-            dx = self.y.copy()
-            dx[np.arange(batch_size), self.t] -= 1
-            dx = dx / batch_size
-
+        dx = (self.y - self.t) / batch_size
         return dx
