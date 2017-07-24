@@ -77,7 +77,6 @@ with tf.Session() as sess:
     early_stop_count = 0
 
     while True:
-        early_stop_count = 0
         avg_cost_list = np.zeros(len(models))
         for index in range(0, len(train_file_list)):
             total_x, total_y = read_data(train_file_list[index])
@@ -108,7 +107,7 @@ with tf.Session() as sess:
                 print('Epoch: ', '%04d' % (epoch+1), 'cost =', avg_cost_list)
                 print('early stopping - epoch({})'.format(epoch+1), ' - ', diff)
                 early_stop_count += 1
-                if early_stop_count == 10:
+                if early_stop_count == 3:
                     break
             early_stopping_list.pop(0)
         epoch += 1
@@ -134,7 +133,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver()
-    saver.restore(sess, 'log/epoch_47.ckpt')
+    saver.restore(sess, 'log/epoch_' + str(last_epoch) + '.ckpt')
 
     print('Testing Started!')
 
