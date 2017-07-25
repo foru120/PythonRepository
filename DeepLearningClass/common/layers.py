@@ -60,5 +60,5 @@ class SoftmaxWithLoss:
 
     def backward(self, dout=1):
         batch_size = self.t.shape[0]
-        dx = (self.y - self.t) / batch_size
+        dx = (self.y - self.t) / batch_size  # CEE 단계로부터 back propagation 이 진행되므로, batch_size 단위로 나눠줘야한다
         return dx

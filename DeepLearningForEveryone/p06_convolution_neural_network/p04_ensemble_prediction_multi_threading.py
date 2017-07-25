@@ -110,7 +110,7 @@ class ThreadHandler:
         c, _ = m.train(self.batch_xs, self.batch_ys)
         self.avg_cost_list[self.models.index(m)] += c / total_batch
 
-training_epochs = 1
+training_epochs = 20
 batch_size = 100
 
 mnist = input_data.read_data_sets('MNIST_data/', one_hot=True)

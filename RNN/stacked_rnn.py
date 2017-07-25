@@ -11,6 +11,7 @@ char_dic = {w: i for i, w in enumerate(char_set)}
 data_dim = len(char_set)  # 입력 문자 하나당 차원의 개수
 hidden_size = len(char_set)  # RNN Cell 출력 개수
 num_classes = len(char_set)  # 최종 출력 class 개수
+
 sequence_length = 10
 learning_rate = 0.1
 
