@@ -9,6 +9,7 @@ class Model:
     def _build_net(self):
         with tf.variable_scope(self.name):
             with tf.name_scope('input_layer') as scope:
+                self.dropout_rate = tf.Variable(tf.constant(value=0.5), name='dropout_rate')
                 self.training = tf.placeholder(tf.bool, name='training')
 
                 self.X = tf.placeholder(tf.float32, [None, 1024], name='x_data')
@@ -34,30 +35,31 @@ class Model:
                 self.Inception_L1 = self.inception_A(self.L3_sub, 3, 160, name='inception_layer1')  # 26x26 -> 13x13
 
             with tf.name_scope('inception_layer2') as scope:
-                self.Inception_L2 = self.inception_B(self.Inception_L1, 3, 200, name='inception_layer2')  # 13x13 -> 7x7
+                self.Inception_L2 = self.inception_B(self.Inception_L1, 3, 240, name='inception_layer2')  # 13x13 -> 7x7
 
             with tf.name_scope('inception_layer3') as scope:
-                self.Inception_L3 = self.inception_C(self.Inception_L2, 3, 240, name='inception_layer3')  # 7x7 -> 4x4
+                self.Inception_L3 = self.inception_C(self.Inception_L2, 3, 300, name='inception_layer3')  # 7x7 -> 4x4
 
             with tf.name_scope('conv_layer1') as scope:
-                self.W4 = tf.get_variable(name='W4', shape=[3, 3, 240, 300], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W4 = tf.get_variable(name='W4', shape=[3, 3, 300, 330], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L4 = tf.nn.conv2d(input=self.Inception_L3, filter=self.W4, strides=[1, 1, 1, 1], padding='SAME')
                 self.L4 = self.batch_norm(self.L4, shape=self.L4.get_shape()[-1], training=self.training, convl=True, name='conv1_BN')
                 self.L4 = self.parametric_relu(self.L4, 'R4')
 
             with tf.name_scope('conv_layer2') as scope:
-                self.W5 = tf.get_variable(name='W5', shape=[3, 3, 300, 350], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W5 = tf.get_variable(name='W5', shape=[3, 3, 330, 360], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L5 = tf.nn.conv2d(input=self.L4, filter=self.W5, strides=[1, 1, 1, 1], padding='SAME')
                 self.L5 = self.batch_norm(self.L5, shape=self.L5.get_shape()[-1], training=self.training, convl=True, name='conv2_BN')
                 self.L5 = self.parametric_relu(self.L5, 'R5')
-                self.L5 = tf.reshape(self.L5, shape=[-1, 4 * 4 * 350])
+                self.L5 = tf.reshape(self.L5, shape=[-1, 4 * 4 * 360])
 
             with tf.name_scope('fc_layer1') as scope:
-                self.W_fc1 = tf.get_variable(name='W_fc1', shape=[4 * 4 * 350, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W_fc1 = tf.get_variable(name='W_fc1', shape=[4 * 4 * 360, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.b_fc1 = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b_fc1'))
                 self.L_fc1 = tf.matmul(self.L5, self.W_fc1) + self.b_fc1
                 self.L_fc1 = self.batch_norm(self.L_fc1, shape=self.L_fc1.get_shape()[-1], training=self.training, convl=False, name='fc1_BN')
                 self.L_fc1 = self.parametric_relu(self.L_fc1, 'R_fc1')
+                self.L_fc1 = tf.layers.dropout(inputs=self.L_fc1, rate=self.dropout_rate, training=self.training)
 
             with tf.name_scope('fc_layer2') as scope:
                 self.W_fc2 = tf.get_variable(name='W_fc2', shape=[1000, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
@@ -65,6 +67,7 @@ class Model:
                 self.L_fc2 = tf.matmul(self.L_fc1, self.W_fc2) + self.b_fc2
                 self.L_fc2 = self.batch_norm(self.L_fc2, shape=self.W_fc2.get_shape()[-1], training=self.training, convl=False, name='fc2_BN')
                 self.L_fc2 = self.parametric_relu(self.L_fc2, 'R_fc2')
+                self.L_fc2 = tf.layers.dropout(inputs=self.L_fc2, rate=self.dropout_rate, training=self.training)
 
             self.W_out = tf.get_variable(name='W_out', shape=[1000, 10], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             self.b_out = tf.Variable(tf.constant(value=0.001, shape=[10], name='b_out'))
@@ -115,37 +118,51 @@ class Model:
         B, H, W, C = x.get_shape()
 
         with tf.variable_scope(name):
-            bias = tf.Variable(tf.constant(value=0.001, shape=[output], name='bias'))
+            # bias = tf.Variable(tf.constant(value=0.001, shape=[output], name='bias'))
 
             # 1x1
             W1x1 = tf.get_variable(name='W1x1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L1x1 = tf.nn.conv2d(name='L1x1', input=x, filter=W1x1, strides=[1, 2, 2, 1], padding='SAME')
+            L1x1 = self.batch_norm(input=L1x1, shape=L1x1.get_shape()[-1], training=self.training, convl=True, name='inceptionA_L1x1_BN')
+            L1x1 = self.parametric_relu(L1x1, 'inceptionA_L1x1_R')
 
-            # 5x5 -> 1x1, 1x3, 3x1, 1x3, 3x1
-            W5x5_sub1 = tf.get_variable(name='W5x5_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            # 5x5 -> 1x1, 3x3, 3x3
+            W5x5_sub1 = tf.get_variable(name='W5x5_sub1', shape=[1, 1, C, 30], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub1 = tf.nn.conv2d(name='L5x5_sub1', input=x, filter=W5x5_sub1, strides=[1, 1, 1, 1], padding='SAME')
+            L5x5_sub1 = self.batch_norm(input=L5x5_sub1, shape=L5x5_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionA_L5x5_sub1_BN')
+            L5x5_sub1 = self.parametric_relu(L5x5_sub1, 'inceptionA_L5x5_sub1_R')
 
-            W5x5_sub2 = tf.get_variable(name='W5x5_sub2', shape=[n, n, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub2 = tf.get_variable(name='W5x5_sub2', shape=[n, n, 30, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub2 = tf.nn.conv2d(name='L5x5_sub2', input=L5x5_sub1, filter=W5x5_sub2, strides=[1, 1, 1, 1], padding='SAME')
+            L5x5_sub2 = self.batch_norm(input=L5x5_sub2, shape=L5x5_sub2.get_shape()[-1], training=self.training, convl=True, name='inceptionA_L5x5_sub2_BN')
+            L5x5_sub2 = self.parametric_relu(L5x5_sub2, 'inceptionA_L5x5_sub2_R')
 
             W5x5_sub3 = tf.get_variable(name='W5x5_sub3', shape=[n, n, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub3 = tf.nn.conv2d(name='L5x5_sub3', input=L5x5_sub2, filter=W5x5_sub3, strides=[1, 2, 2, 1], padding='SAME')
+            L5x5_sub3 = self.batch_norm(input=L5x5_sub3, shape=L5x5_sub3.get_shape()[-1], training=self.training, convl=True, name='inceptionA_L5x5_sub3_BN')
+            L5x5_sub3 = self.parametric_relu(L5x5_sub3, 'inceptionA_L5x5_sub3_R')
 
-            # 3x3 -> 1x1, 1x3, 3x1
-            W3x3_sub1 = tf.get_variable(name='W3x3_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            # 3x3 -> 1x1, 3x3
+            W3x3_sub1 = tf.get_variable(name='W3x3_sub1', shape=[1, 1, C, 30], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L3x3_sub1 = tf.nn.conv2d(name='L3x3_sub1', input=x, filter=W3x3_sub1, strides=[1, 1, 1, 1], padding='SAME')
+            L3x3_sub1 = self.batch_norm(input=L3x3_sub1, shape=L3x3_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionA_L3x3_sub1_BN')
+            L3x3_sub1 = self.parametric_relu(L3x3_sub1, 'inceptionA_L3x3_sub1_R')
 
-            W3x3_sub2 = tf.get_variable(name='W3x3_sub2', shape=[n, n, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W3x3_sub2 = tf.get_variable(name='W3x3_sub2', shape=[n, n, 30, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L3x3_sub2 = tf.nn.conv2d(name='L3x3_sub2', input=L3x3_sub1, filter=W3x3_sub2, strides=[1, 2, 2, 1], padding='SAME')
+            L3x3_sub2 = self.batch_norm(input=L3x3_sub2, shape=L3x3_sub2.get_shape()[-1], training=self.training, convl=True, name='inceptionA_L3x3_sub2_BN')
+            L3x3_sub2 = self.parametric_relu(L3x3_sub2, 'inceptionA_L3x3_sub2_R')
 
             # avg pooling -> avg pooling, 1x1
             L_pool = tf.nn.avg_pool(name='L_pool', value=x, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME')
             W_pool_sub1 = tf.get_variable(name='W_pool_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L_pool_sub1 = tf.nn.conv2d(name='L_pool_sub1', input=L_pool, filter=W_pool_sub1, strides=[1, 2, 2, 1], padding='SAME')
+            L_pool_sub1 = self.batch_norm(input=L_pool_sub1, shape=L_pool_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionA_L_pool_sub1_BN')
+            L_pool_sub1 = self.parametric_relu(L_pool_sub1, 'inceptionA_L_pool_sub1_R')
 
             tot_layers = tf.concat([L1x1, L5x5_sub3, L3x3_sub2, L_pool_sub1], axis=3)  # Concat in the 4th dim to stack
-            tot_layers = self.batch_norm(input=tot_layers, shape=output, training=self.training, convl=True, name='inception_BN')
-            tot_layers = self.parametric_relu(tot_layers + bias, 'R_inception')
+            # tot_layers = self.batch_norm(input=tot_layers, shape=output, training=self.training, convl=True, name='inception_BN')
+            # tot_layers = self.parametric_relu(tot_layers + bias, 'R_inception')
         return tot_layers
 
     def inception_B(self, x, n, output, name):
@@ -153,46 +170,66 @@ class Model:
         B, H, W, C = x.get_shape()
 
         with tf.variable_scope(name):
-            bias = tf.Variable(tf.constant(value=0.001, shape=[output], name='bias'))
+            # bias = tf.Variable(tf.constant(value=0.001, shape=[output], name='bias'))
 
             # 1x1
-            W1x1 = tf.get_variable(name='W1x1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W1x1 = tf.get_variable(name='W1x1', shape=[1, 1, C, 90], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L1x1 = tf.nn.conv2d(name='L1x1', input=x, filter=W1x1, strides=[1, 2, 2, 1], padding='SAME')
+            L1x1 = self.batch_norm(input=L1x1, shape=L1x1.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L1x1_BN')
+            L1x1 = self.parametric_relu(L1x1, 'inceptionB_L1x1_R')
 
             # 5x5 -> 1x1, 1x3, 3x1, 1x3, 3x1
-            W5x5_sub1 = tf.get_variable(name='W5x5_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub1 = tf.get_variable(name='W5x5_sub1', shape=[1, 1, C, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub1 = tf.nn.conv2d(name='L5x5_sub1', input=x, filter=W5x5_sub1, strides=[1, 1, 1, 1], padding='SAME')
+            L5x5_sub1 = self.batch_norm(input=L5x5_sub1, shape=L5x5_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L5x5_sub1_BN')
+            L5x5_sub1 = self.parametric_relu(L5x5_sub1, 'inceptionB_L5x5_sub1_R')
 
-            W5x5_sub2 = tf.get_variable(name='W5x5_sub2', shape=[1, n, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub2 = tf.get_variable(name='W5x5_sub2', shape=[1, n, 40, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub2 = tf.nn.conv2d(name='L5x5_sub2', input=L5x5_sub1, filter=W5x5_sub2, strides=[1, 1, 1, 1], padding='SAME')
+            L5x5_sub2 = self.batch_norm(input=L5x5_sub2, shape=L5x5_sub2.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L5x5_sub2_BN')
+            L5x5_sub2 = self.parametric_relu(L5x5_sub2, 'inceptionB_L5x5_sub2_R')
 
-            W5x5_sub3 = tf.get_variable(name='W5x5_sub3', shape=[n, 1, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub3 = tf.get_variable(name='W5x5_sub3', shape=[n, 1, 40, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub3 = tf.nn.conv2d(name='L5x5_sub3', input=L5x5_sub2, filter=W5x5_sub3, strides=[1, 1, 1, 1], padding='SAME')
+            L5x5_sub3 = self.batch_norm(input=L5x5_sub3, shape=L5x5_sub3.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L5x5_sub3_BN')
+            L5x5_sub3 = self.parametric_relu(L5x5_sub3, 'inceptionB_L5x5_sub3_R')
 
-            W5x5_sub4 = tf.get_variable(name='W5x5_sub4', shape=[1, n, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub4 = tf.get_variable(name='W5x5_sub4', shape=[1, n, 50, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub4 = tf.nn.conv2d(name='L5x5_sub4', input=L5x5_sub3, filter=W5x5_sub4, strides=[1, 1, 2, 1], padding='SAME')
+            L5x5_sub4 = self.batch_norm(input=L5x5_sub4, shape=L5x5_sub4.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L5x5_sub4_BN')
+            L5x5_sub4 = self.parametric_relu(L5x5_sub4, 'inceptionB_L5x5_sub4_R')
 
-            W5x5_sub5 = tf.get_variable(name='W5x5_sub5', shape=[n, 1, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub5 = tf.get_variable(name='W5x5_sub5', shape=[n, 1, 50, 60], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub5 = tf.nn.conv2d(name='L5x5_sub5', input=L5x5_sub4, filter=W5x5_sub5, strides=[1, 2, 1, 1], padding='SAME')
+            L5x5_sub5 = self.batch_norm(input=L5x5_sub5, shape=L5x5_sub5.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L5x5_sub5_BN')
+            L5x5_sub5 = self.parametric_relu(L5x5_sub5, 'inceptionB_L5x5_sub5_R')
 
             # 3x3 -> 1x1, 1x3, 3x1
-            W3x3_sub1 = tf.get_variable(name='W3x3_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W3x3_sub1 = tf.get_variable(name='W3x3_sub1', shape=[1, 1, C, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L3x3_sub1 = tf.nn.conv2d(name='L3x3_sub1', input=x, filter=W3x3_sub1, strides=[1, 1, 1, 1], padding='SAME')
+            L3x3_sub1 = self.batch_norm(input=L3x3_sub1, shape=L3x3_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L3x3_sub1_BN')
+            L3x3_sub1 = self.parametric_relu(L3x3_sub1, 'inceptionB_L3x3_sub1_R')
 
-            W3x3_sub2 = tf.get_variable(name='W3x3_sub2', shape=[1, n, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W3x3_sub2 = tf.get_variable(name='W3x3_sub2', shape=[1, n, 40, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L3x3_sub2 = tf.nn.conv2d(name='L3x3_sub2', input=L3x3_sub1, filter=W3x3_sub2, strides=[1, 1, 2, 1], padding='SAME')
+            L3x3_sub2 = self.batch_norm(input=L3x3_sub2, shape=L3x3_sub2.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L3x3_sub2_BN')
+            L3x3_sub2 = self.parametric_relu(L3x3_sub2, 'inceptionB_L3x3_sub2_R')
 
-            W3x3_sub3 = tf.get_variable(name='W3x3_sub3', shape=[n, 1, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W3x3_sub3 = tf.get_variable(name='W3x3_sub3', shape=[n, 1, 50, 60], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L3x3_sub3 = tf.nn.conv2d(name='L3x3_sub3', input=L3x3_sub2, filter=W3x3_sub3, strides=[1, 2, 1, 1], padding='SAME')
+            L3x3_sub3 = self.batch_norm(input=L3x3_sub3, shape=L3x3_sub3.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L3x3_sub3_BN')
+            L3x3_sub3 = self.parametric_relu(L3x3_sub3, 'inceptionB_L3x3_sub3_R')
 
             # max pooling -> max pooling, 1x1
             L_pool = tf.nn.avg_pool(name='L_pool', value=x, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME')
-            W_pool_sub1 = tf.get_variable(name='W_pool_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W_pool_sub1 = tf.get_variable(name='W_pool_sub1', shape=[1, 1, C, 30], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L_pool_sub1 = tf.nn.conv2d(name='L_pool_sub1', input=L_pool, filter=W_pool_sub1, strides=[1, 2, 2, 1], padding='SAME')
+            L_pool_sub1 = self.batch_norm(input=L_pool_sub1, shape=L_pool_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionB_L_pool_sub1_BN')
+            L_pool_sub1 = self.parametric_relu(L_pool_sub1, 'inceptionB_L_pool_sub1_R')
 
             tot_layers = tf.concat([L1x1, L5x5_sub5, L3x3_sub3, L_pool_sub1], axis=3)  # Concat in the 4th dim to stack
-            tot_layers = self.batch_norm(input=tot_layers, shape=output, training=self.training, convl=True, name='inception_BN')
-            tot_layers = self.parametric_relu(tot_layers + bias, 'R_inception')
+            # tot_layers = self.batch_norm(input=tot_layers, shape=output, training=self.training, convl=True, name='inception_BN')
+            # tot_layers = self.parametric_relu(tot_layers + bias, 'R_inception')
         return tot_layers
 
     def inception_C(self, x, n, output, name):
@@ -200,41 +237,59 @@ class Model:
         B, H, W, C = x.get_shape()
 
         with tf.variable_scope(name):
-            bias = tf.Variable(tf.constant(value=0.001, shape=[output], name='bias'))
+            # bias = tf.Variable(tf.constant(value=0.001, shape=[output], name='bias'))
 
             # 1x1
-            W1x1 = tf.get_variable(name='W1x1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W1x1 = tf.get_variable(name='W1x1', shape=[1, 1, C, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L1x1 = tf.nn.conv2d(name='L1x1', input=x, filter=W1x1, strides=[1, 2, 2, 1], padding='SAME')
+            L1x1 = self.batch_norm(input=L1x1, shape=L1x1.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L1x1_BN')
+            L1x1 = self.parametric_relu(L1x1, 'inceptionC_L1x1_R')
 
             # 5x5 -> 1x1, 1x3, 3x1, 1x3, 3x1
-            W5x5_sub1 = tf.get_variable(name='W5x5_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub1 = tf.get_variable(name='W5x5_sub1', shape=[1, 1, C, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub1 = tf.nn.conv2d(name='L5x5_sub1', input=x, filter=W5x5_sub1, strides=[1, 1, 1, 1], padding='SAME')
+            L5x5_sub1 = self.batch_norm(input=L5x5_sub1, shape=L5x5_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L5x5_sub1_BN')
+            L5x5_sub1 = self.parametric_relu(L5x5_sub1, 'inceptionC_L5x5_sub1_R')
 
-            W5x5_sub2 = tf.get_variable(name='W5x5_sub2', shape=[n, n, OPL, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub2 = tf.get_variable(name='W5x5_sub2', shape=[n, n, 100, 150], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub2 = tf.nn.conv2d(name='L5x5_sub2', input=L5x5_sub1, filter=W5x5_sub2, strides=[1, 2, 2, 1], padding='SAME')
+            L5x5_sub2 = self.batch_norm(input=L5x5_sub2, shape=L5x5_sub2.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L5x5_sub2_BN')
+            L5x5_sub2 = self.parametric_relu(L5x5_sub2, 'inceptionC_L5x5_sub2_R')
 
-            W5x5_sub3 = tf.get_variable(name='W5x5_sub3', shape=[n, 1, OPL, int(OPL/2)], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub3 = tf.get_variable(name='W5x5_sub3', shape=[n, 1, 150, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub3 = tf.nn.conv2d(name='L5x5_sub3', input=L5x5_sub2, filter=W5x5_sub3, strides=[1, 1, 1, 1], padding='SAME')
+            L5x5_sub3 = self.batch_norm(input=L5x5_sub3, shape=L5x5_sub3.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L5x5_sub3_BN')
+            L5x5_sub3 = self.parametric_relu(L5x5_sub3, 'inceptionC_L5x5_sub3_R')
 
-            W5x5_sub4 = tf.get_variable(name='W5x5_sub4', shape=[1, n, OPL, int(OPL/2)], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W5x5_sub4 = tf.get_variable(name='W5x5_sub4', shape=[1, n, 150, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L5x5_sub4 = tf.nn.conv2d(name='L5x5_sub4', input=L5x5_sub2, filter=W5x5_sub4, strides=[1, 1, 1, 1], padding='SAME')
+            L5x5_sub4 = self.batch_norm(input=L5x5_sub4, shape=L5x5_sub4.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L5x5_sub4_BN')
+            L5x5_sub4 = self.parametric_relu(L5x5_sub4, 'inceptionC_L5x5_sub4_R')
 
             # 3x3 -> 1x1, 1x3, 3x1
-            W3x3_sub1 = tf.get_variable(name='W3x3_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W3x3_sub1 = tf.get_variable(name='W3x3_sub1', shape=[1, 1, C, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L3x3_sub1 = tf.nn.conv2d(name='L3x3_sub1', input=x, filter=W3x3_sub1, strides=[1, 2, 2, 1], padding='SAME')
+            L3x3_sub1 = self.batch_norm(input=L3x3_sub1, shape=L3x3_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L3x3_sub1_BN')
+            L3x3_sub1 = self.parametric_relu(L3x3_sub1, 'inceptionC_L3x3_sub1_R')
 
-            W3x3_sub2 = tf.get_variable(name='W3x3_sub2', shape=[1, n, OPL, int(OPL/2)], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W3x3_sub2 = tf.get_variable(name='W3x3_sub2', shape=[1, n, 100, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L3x3_sub2 = tf.nn.conv2d(name='L3x3_sub2', input=L3x3_sub1, filter=W3x3_sub2, strides=[1, 1, 1, 1], padding='SAME')
+            L3x3_sub2 = self.batch_norm(input=L3x3_sub2, shape=L3x3_sub2.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L3x3_sub2_BN')
+            L3x3_sub2 = self.parametric_relu(L3x3_sub2, 'inceptionC_L3x3_sub2_R')
 
-            W3x3_sub3 = tf.get_variable(name='W3x3_sub3', shape=[n, 1, OPL, int(OPL/2)], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W3x3_sub3 = tf.get_variable(name='W3x3_sub3', shape=[n, 1, 100, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L3x3_sub3 = tf.nn.conv2d(name='L3x3_sub3', input=L3x3_sub1, filter=W3x3_sub3, strides=[1, 1, 1, 1], padding='SAME')
+            L3x3_sub3 = self.batch_norm(input=L3x3_sub3, shape=L3x3_sub3.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L3x3_sub3_BN')
+            L3x3_sub3 = self.parametric_relu(L3x3_sub3, 'inceptionB_L3x3_sub1_R')
 
             # max pooling -> max pooling, 1x1
             L_pool = tf.nn.avg_pool(name='L_pool', value=x, ksize=[1, 2, 2, 1], strides=[1, 1, 1, 1], padding='SAME')
-            W_pool_sub1 = tf.get_variable(name='W_pool_sub1', shape=[1, 1, C, OPL], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            W_pool_sub1 = tf.get_variable(name='W_pool_sub1', shape=[1, 1, C, 50], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             L_pool_sub1 = tf.nn.conv2d(name='L_pool_sub1', input=L_pool, filter=W_pool_sub1, strides=[1, 2, 2, 1], padding='SAME')
+            L_pool_sub1 = self.batch_norm(input=L_pool_sub1, shape=L_pool_sub1.get_shape()[-1], training=self.training, convl=True, name='inceptionC_L_pool_sub1_BN')
+            L_pool_sub1 = self.parametric_relu(L_pool_sub1, 'inceptionC_L_pool_sub1_R')
 
             tot_layers = tf.concat([L1x1, L5x5_sub3, L5x5_sub4, L3x3_sub2, L3x3_sub3, L_pool_sub1], axis=3)  # Concat in the 4th dim to stack
-            tot_layers = self.batch_norm(input=tot_layers, shape=output, training=self.training, convl=True, name='inception_BN')
-            tot_layers = self.parametric_relu(tot_layers + bias, 'R_inception')
+            # tot_layers = self.batch_norm(input=tot_layers, shape=output, training=self.training, convl=True, name='inception_BN')
+            # tot_layers = self.parametric_relu(tot_layers + bias, 'R_inception')
         return tot_layers
