@@ -39,12 +39,14 @@ class Model:
 
             with tf.name_scope('inception_layer3') as scope:
                 self.Inception_L3 = self.inception_C(self.Inception_L2, 3, 300, name='inception_layer3')  # 7x7 -> 4x4
+                self.Inception_L3 = tf.layers.dropout(inputs=self.Inception_L3, rate=self.dropout_rate, training=self.training)
 
             with tf.name_scope('conv_layer1') as scope:
                 self.W4 = tf.get_variable(name='W4', shape=[3, 3, 300, 330], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L4 = tf.nn.conv2d(input=self.Inception_L3, filter=self.W4, strides=[1, 1, 1, 1], padding='SAME')
                 self.L4 = self.batch_norm(self.L4, shape=self.L4.get_shape()[-1], training=self.training, convl=True, name='conv1_BN')
                 self.L4 = self.parametric_relu(self.L4, 'R4')
+                # self.L4 = tf.reshape(self.L4, shape=[-1, 4 * 4 * 330])
 
             with tf.name_scope('conv_layer2') as scope:
                 self.W5 = tf.get_variable(name='W5', shape=[3, 3, 330, 360], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
@@ -52,6 +54,7 @@ class Model:
                 self.L5 = self.batch_norm(self.L5, shape=self.L5.get_shape()[-1], training=self.training, convl=True, name='conv2_BN')
                 self.L5 = self.parametric_relu(self.L5, 'R5')
                 self.L5 = tf.reshape(self.L5, shape=[-1, 4 * 4 * 360])
+                self.L5 = tf.layers.dropout(inputs=self.L5, rate=self.dropout_rate, training=self.training)
 
             with tf.name_scope('fc_layer1') as scope:
                 self.W_fc1 = tf.get_variable(name='W_fc1', shape=[4 * 4 * 360, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())

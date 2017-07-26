@@ -80,7 +80,7 @@ with tf.Session() as sess:
         avg_cost_list = np.zeros(len(models))
         for index in range(0, len(train_file_list)):
             total_x, total_y = read_data(train_file_list[index])
-            for start_idx in range(0, 500, batch_size):
+            for start_idx in range(0, 1000, batch_size):
                 train_x_batch, train_y_batch = total_x[start_idx:start_idx+batch_size], total_y[start_idx:start_idx+batch_size]
 
                 for idx, m in enumerate(models):
@@ -134,6 +134,7 @@ with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver()
     saver.restore(sess, 'log/epoch_' + str(last_epoch) + '.ckpt')
+    # saver.restore(sess, 'log/epoch_34.ckpt')
 
     print('Testing Started!')
 
@@ -144,7 +145,7 @@ with tf.Session() as sess:
 
     for index in range(0, len(test_file_list)):
         total_x, total_y = read_data(test_file_list[index])
-        for start_idx in range(0, 500, batch_size):
+        for start_idx in range(0, 1000, batch_size):
             test_x_batch, test_y_batch = total_x[start_idx:start_idx + batch_size], total_y[start_idx:start_idx + batch_size]
             test_size = len(test_y_batch)
             predictions = np.zeros((test_size, 10, 3))
