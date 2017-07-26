@@ -1,0 +1,205 @@
+print('====================================================================================================')
+print('== NCS 문제 1. 아래의 스크립트를 테스트해보면 x 의 원소가 out 의 원소로 변경되었을 것이다.'
+      '다시 테스트할 때 x 의 원소가 out 의 원소로 변경되지 않게 하려면 어떻게 해야하는가?')
+print('====================================================================================================\n')
+import copy
+import numpy as np
+
+x = np.array([[1.0, -0.5], [-2.0, 3.0]])
+print(x)
+
+mask = (x <= 0)
+print(mask)
+
+out = x.copy()
+print(out)
+out[mask] = 0
+
+print(out)
+print(x)
+
+# ■ 5장 목차
+#    1. 역전파란 무럿인가?
+#    2. 계산 그래프
+#     - 덧셈 그래프
+#     - 곱셈 그래프
+#     - 덧셈 그래프 역전파
+#     - 곱셈 그래프 역전파
+#    3. 파이썬으로 단순한 계층 구현하기
+#     - 덧셈 계층 (역전파 포함)
+#     - 곱셈 계층 (역전파 포함)
+#     - Relu 계층 (역전파 포함)
+#     - sigmoid 계층 (역전파 포함)
+#    4. Affine과 softmax계층 구현
+#    5. 배치용 affine계층 구현
+#    6. softmax wirh loss 계층
+#    7. 오차역전파법 구현하기
+
+# ■ 역전파란?
+#
+# 신경망 학습 처리에서 최소화되는 함수의 경사를 효율적으로 계산하기 위한 방법으로 "오류 역전파"가 있다.
+#
+# 함수의 경사(기울기)를 계산하는 방법
+#    1. 수치 미분 <--- 너무 성능이 느림
+#    2. 오류 역전파 <--- 성능이 빠르고 간단하다.
+#
+# * 순전파 vs 역전파
+# - 순전파:  입력층  ->  은닉층 -> 출력층
+# - 역전파:  출력층  ->  은닉층 -> 입력층
+# 오차를 역전파시킨다.
+#
+# 출력층부터 차례대로 역방향으로 거슬로 올라가 각 층에 있는 노드의 오차를 계산할 수 있다.
+# 각 노드의 오차를 계산하면 그 오차를 사용해서 함수의 기울기를 계산할 수 있다.
+# "즉, 전파된 오차를 이용하여 가중치를 조정한다. "
+#           ↓
+#     오차 역전파
+
+# ■ 계산 그래프
+#
+# "순전파와 역전파의 계산 과정을 그래프로 나타내는 방법"
+#
+# 계산 그래프의 장점?  국소적 계산을 할 수 있다.
+#                             국소적 계산이란? 전체에 어떤 일이 벌어지던 상관없이 자신과 관계된
+#             정보만으로 다음 결과를 출력할 수 있다는 것
+#
+# 그림 fig 5-4
+#
+# ■ 왜? 계산 그래프로 푸는가?
+#    전체가 아무리 복잡해도 각 노드에서 단순한 계산에 집중하여 문제를 단순화시킬 수 있다.
+#
+# ■ 실제로 계산 그래프를 사용하는 가장 큰 이유는?
+#    역전파를 통해서 미분을 효율적으로 계산할 수 있다.
+#                   ↓
+#    사과 값이 '아주 조금' 올랐을 때 '지불금액'이 얼마나 증가하는지를 알고 싶다는 것이다.
+#    => 지불금액을 사과 값으로 편미분 하면 ㅇ
+#               ↓
+#    사과값이 1원 오르면 최종금액은 2.2원이 오른다.
+
+print('====================================================================================================')
+print('== 문제 100. 위에서 만든 곱셈 클래스를 객체화 시켜서 아래의 사과가격의 총 가격을 구하시오.')
+print('====================================================================================================\n')
+apple = 200
+apple_num = 5
+tax = 1.2
+
+class MulLayer:
+      def __init__(self):
+            self.x = None
+            self.y = None
+
+      def forward(self, x, y):
+            self.x = x
+            self.y = y
+            out = x * y
+            return x * y
+
+      def backward(self, dout):
+            dx = dout * self.y
+            dy = dout * self.x
+            return dx, dy
+
+apple_layer = MulLayer()
+tax_layer = MulLayer()
+
+apple_price = apple_layer.forward(apple, apple_num)
+price = tax_layer.forward(apple_price, tax)
+price
+
+print('====================================================================================================')
+print('== 문제 101. 덧셈 계층을 파이썬으로 구현하시오!')
+print('====================================================================================================\n')
+class AddLayer:
+      def __init__(self):
+            pass
+
+      def forward(self, x, y):
+            return x + y
+
+      def backward(self, dout):
+            dx = dout
+            dy = dout
+            return dx, dy
+
+print('====================================================================================================')
+print('== 문제 102. 사과 2개와 귤 5개를 구입하면 총 가격이 얼마인지 구하시오!')
+print('====================================================================================================\n')
+apple_node = MulLayer()
+apple_price = apple_node.forward(200, 2)
+orange_node = MulLayer()
+orange_price = orange_node.forward(300, 5)
+fruit_node = AddLayer()
+fruit_price = fruit_node.forward(apple_price, orange_price)
+total_node = MulLayer()
+total_price = total_node.forward(fruit_price, 1.5)
+print(total_price)
+
+print('====================================================================================================')
+print('== 문제 106. 문제 105번 역전파를 파이썬으로 구현하시오.')
+print('====================================================================================================\n')
+mul_apple_layer = MulLayer()
+mul_mandarin_layer = MulLayer()
+mul_pear_layer = MulLayer()
+add_apple_mandarin_layer = AddLayer()
+add_all_layer = AddLayer()
+mul_tax_layer = MulLayer()
+
+##순전파
+apple_price = mul_apple_layer.forward(apple, apple_cnt)
+mandarin_price = mul_mandarin_layer.forward(mandarin, mandarin_cnt)
+pear_price = mul_pear_layer.forward(pear, pear_cnt)
+apple_mandarin_price = add_apple_mandarin_layer.forward(apple_price, mandarin_price)
+all_price = add_all_layer.forward(apple_mandarin_price, pear_price)
+price = mul_tax_layer.forward(all_price, tax)
+
+## 역전파
+d_price = 1
+d_all_price, d_tax = mul_tax_layer.backward(d_price) #6번
+d_apple_mandarin_price, d_pear_price = add_all_layer.backward(d_all_price) #5번
+d_apple_price, d_mandarin_price = add_apple_mandarin_layer.backward(d_apple_mandarin_price) #4번
+d_apple, d_apple_cnt = mul_apple_layer.backward(d_apple_price) # 1번
+d_mandarin, d_mandarin_cnt = mul_mandarin_layer.backward(d_mandarin_price) #2번
+d_pear, d_pear_cnt = mul_pear_layer.backward(d_pear_price) # 3번
+print(price)
+print(d_apple, d_apple_cnt, d_mandarin, d_mandarin_cnt, d_pear, d_pear_cnt)
+
+# ■ ReLU 함수를 만들기 전에 기본적으로 알아야할 문법
+import copy
+import numpy as np
+
+x = np.array([[1.0, -0.5], [-2.0, 3.0]])
+print(x)
+
+mask = (x <= 0)
+print(mask)
+
+out = x.copy()
+print(out)
+
+out[mask] = 0
+print(out)
+
+print(x)
+
+print('====================================================================================================')
+print('== 문제 107. ReLU 함수를 파이썬으로 구현하시오!')
+print('====================================================================================================\n')
+class Relu:
+      def __init__(self):
+            self.mask = None
+
+      def forward(self, x):
+            self.mask = x <= 0
+            out = x.copy()
+            out[self.mask] = 0
+            return out
+
+      def backward(self, dout):
+            dout[self.mask] = 0
+            return dout
+
+print('====================================================================================================')
+print('== 문제 108. 아래의 x 변수를 생성하고 x 를 Relu 객체의 forward 함수에 넣으면 무엇이 출력되는지 확인하시오.')
+print('====================================================================================================\n')
+x = np.array([1.0, 5.0, -2.0, 3.0])
+relu = Relu()
+print(relu.forward(x))
