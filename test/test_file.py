@@ -20,3 +20,6 @@ a = np.array([ [[1, 2, 3],
 b = np.array([1, 3, 4, 2])
 c = np.array([5, 3, 2, 1])
 print(np.mean(b == c))
+
+v = [1,2,3,4,5]
+print(np.mean(v))

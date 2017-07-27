@@ -29,7 +29,7 @@ class TwoLayerNet:
         return x
 
     # x : 입력 데이터, t : 정답 레이블
-    def loss(self, x, t):  # x : (100, 784), t : (100, 10)
+    def loss(self, x, t):  # x : (100, 1024), t : (100, 10)
         y = self.predict(x)  # (100, 10) : 마지막 출력층을 통과한 신경망이 예측한 값
         return self.lastLayer.forward(y, t)  # 마지막 계층인 SoftmaxWithLoss 계층에 대해 forward 수행
 
