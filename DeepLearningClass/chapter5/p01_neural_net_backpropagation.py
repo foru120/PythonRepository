@@ -326,3 +326,157 @@ a2 = Affine(w2, b2)
 z2 = a2.forward(z1)
 
 a2.backward(h1)
+
+print('====================================================================================================')
+print('== 문제 128. 위에서 만든 softmaxWithloss 클래스를 객체화 시켜서 아래의 x (입력값), t(target value) 를 입력해서'
+      '순전파 오차율을 확인하시오!')
+print('====================================================================================================\n')
+
+print('====================================================================================================')
+print('== 문제 129. 데이터만 mnist 가 아니라 쉽게 하나의 값으로 변경한 코드의 순전파 결과값을 출력하시오!')
+print('====================================================================================================\n')
+import numpy as np
+from collections import OrderedDict
+
+class TwoLayerNet:
+    def __init__(self):
+        # 가중치 초기화
+        self.params = {}
+        self.params['W1'] = np.array([[1,2,3],[4,5,6]]) #(2,3)
+        self.params['b1'] = np.array([1,2,3], ndmin=2) # (2, )
+        self.params['W2'] = np.array([[1,2,3],[4,5,6], [7,8,9]]) #(3,3)
+        self.params['b2'] = np.array([1,2,3], ndmin=2) #(2, )
+
+        # 계층 생성
+        self.layers = OrderedDict()
+        self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
+        self.layers['Relu1'] = Relu()
+        self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
+        self.lastLayer = SoftmaxWithLoss()
+
+    def predict(self, x):
+        for layer in self.layers.values():
+            x = layer.forward(x)
+        return x
+
+    # x : 입력 데이터, t : 정답 레이블
+
+    def loss(self, x, t):
+        y = self.predict(x)
+        return self.lastLayer.forward(y, t)
+
+    def accuracy(self, x, t):
+        y = self.predict(x)
+        y = np.argmax(y, axis=1)
+        if t.ndim != 1: t = np.argmax(t, axis=1)
+        accuracy = np.sum(y == t) / float(x.shape[0])
+        return accuracy
+
+    # x : 입력 데이터, t : 정답 레이블
+
+    def gradient(self, x, t):
+        # forward
+        self.loss(x, t)
+
+        # backward
+        dout = 1
+        dout = self.lastLayer.backward(dout)
+        layers = list(self.layers.values())
+        layers.reverse()
+        for layer in layers:
+            dout = layer.backward(dout)
+        # 결과 저장
+        grads = {}
+        grads['W1'], grads['b1'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
+        grads['W2'], grads['b2'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
+        return grads
+
+class Relu:
+    def __init__(self):
+        self.mask = None
+
+    def forward(self, x):
+        self.mask = x <= 0
+        out = x.copy()
+        out[self.mask] = 0
+        return out
+
+    def backward(self, dout):
+        dout[self.mask] = 0
+        return dout
+
+class Affine:
+    def __init__(self, W, b):
+        self.W = W
+        self.b = b
+
+        self.x = None
+
+        # 가중치와 편향 매개변수의 미분
+        self.dW = None
+        self.db = None
+
+    def forward(self, x):
+        self.x = x
+        out = np.dot(self.x, self.W) + self.b
+
+        return out
+
+    def backward(self, dout):
+        # 순전파 ▷ X : (2, 3), W : (3, 4) -> XㆍY : (2, 4)
+        # 역전파 ▷ XㆍY : (2, 4) -> X : (2, 4)ㆍWＴ, W : XＴㆍ(2, 4)
+        dx = np.dot(dout, self.W.T)
+        self.dW = np.dot(self.x.T, dout)
+        self.db = np.sum(dout, axis=0)  # 편향은 순전파시 각각의 데이터에 더해지므로, 역전파시에 각 축의 값이 편향의 원소에 모여야 한다
+
+        return dx
+
+class SoftmaxWithLoss:
+    def __init__(self):
+        self.loss = None  # 손실함수
+        self.y = None  # softmax의 출력
+        self.t = None  # 정답 레이블(원-핫 인코딩 형태)
+
+    def forward(self, x, t):
+        self.t = t
+        self.y = softmax(x)
+        self.loss = cross_entropy_error(self.y, self.t)
+
+        return self.loss
+
+    def backward(self, dout=1):
+        batch_size = self.t.shape[0]
+        dx = (self.y - self.t) / batch_size  # CEE 단계로부터 back propagation 이 진행되므로, batch_size 단위로 나눠줘야한다
+        return dx
+
+def softmax(x):
+    if x.ndim == 2:
+        x = x.T
+        x = x - np.max(x, axis=0)
+        y = np.exp(x) / np.sum(np.exp(x), axis=0)
+        return y.T
+
+    x = x - np.max(x)  # 오버플로 대책
+    return np.exp(x) / np.sum(np.exp(x))
+
+def cross_entropy_error(y, t):
+    if y.ndim == 1:
+        t = t.reshape(1, t.size)
+        y = y.reshape(1, y.size)
+
+    # 훈련 데이터가 원-핫 벡터라면 정답 레이블의 인덱스로 반환
+    if t.size == y.size:
+        t = t.argmax(axis=1)
+
+    batch_size = y.shape[0]
+    return -np.sum(np.log(y[np.arange(batch_size), t])) / batch_size
+
+network = TwoLayerNet()
+x = np.array([[1, 2], [3, 4], [5, 6]])
+t = np.array([[3, 4, 5], [2, 1, 4], [2, 5, 6]])
+grads = network.gradient(x, t)
+
+print('====================================================================================================')
+print('== 문제 130. 역전파된 dW 값을 출력하시오.')
+print('====================================================================================================\n')
+print(grads['W1'], grads['b1'], grads['W2'], grads['b2'])
