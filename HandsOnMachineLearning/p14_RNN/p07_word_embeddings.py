@@ -6,3 +6,5 @@ embeddings = tf.Variable(tf.random_uniform([vocabulary_size, embedding_size], -1
 
 train_inputs = tf.placeholder(tf.int32, shape=[None])
 embed = tf.nn.embedding_lookup(embeddings, train_inputs)
+
+tf.nn.sampled_softmax_loss()

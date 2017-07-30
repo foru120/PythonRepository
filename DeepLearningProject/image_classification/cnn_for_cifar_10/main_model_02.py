@@ -1,4 +1,4 @@
-from DeepLearningProject.image_classification.cnn_for_cifar_10.ensemble_cnn_model_cifar_10 import Model
+from DeepLearningProject.image_classification.cnn_for_cifar_10.ensemble_cnn_model_cifar_10_test_1 import Model
 import tensorflow as tf
 import numpy as np
 import time
