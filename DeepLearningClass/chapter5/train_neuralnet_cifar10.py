@@ -1,7 +1,8 @@
 # coding: utf-8
 
 import numpy as np
-from DeepLearningClass.chapter5.two_layer_net import TwoLayerNet
+from DeepLearningClass.chapter5.two_layer_net_3_layer import TwoLayerNet
+from DeepLearningClass.common.optimizer import Adam
 
 train_file_list = ['data/train_data_' + str(i) + '.csv' for i in range(1, 51)]
 test_file_list = ['data/test_data_' + str(i) + '.csv' for i in range(1, 11)]
@@ -26,7 +27,7 @@ def read_data(filename):
     np.random.shuffle(data)
     return data_setting(data)
 
-network = TwoLayerNet(input_size=1024, hidden_size=50, output_size=10)
+network = TwoLayerNet(input_size=1024, hidden_size1=200, hidden_size2=200, output_size=10)
 
 epochs = 5
 batch_size = 100  # 배치 단위
@@ -35,6 +36,7 @@ learning_rate = 0.1  # 학습률
 train_loss_list = []  # 매 배치마다 cost 값을 저장하는 리스트 변수
 train_acc_list = []  # 매 epoch 마다 train accuracy 를 저장하는 리스트 변수
 test_acc_list = []  # 매 epoch 마다 test accuracy 를 저장하는 리스트 변수
+optimizer = Adam()
 
 # 학습 시작
 print('Learning Started!')
@@ -49,8 +51,9 @@ for epoch in range(epochs):
             grad = network.gradient(train_x_batch, train_y_batch)  # 기울기 계산
 
             # Weight, Bias 갱신
-            for key in network.params.keys():
-                network.params[key] -= learning_rate * grad[key]
+            optimizer.update(network.params, grad)
+            # for key in network.params.keys():
+            #     network.params[key] -= learning_rate * grad[key]
 
             loss = network.loss(train_x_batch, train_y_batch)  # 변경된 Weight, Bias 을 가지고 loss 구함
             train_loss_list.append(loss)  # 매 batch 단위 수행시마다 loss 값을 저장
