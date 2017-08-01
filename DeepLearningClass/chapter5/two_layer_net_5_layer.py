@@ -7,37 +7,37 @@ from DeepLearningClass.common.layers import *
 from collections import OrderedDict
 
 class TwoLayerNet:
-    def __init__(self, input_size, hidden_size1, hidden_size2, output_size, weight_init_std=0.01):
-        self.is_train = True
+    def __init__(self, input_size, hidden_size1, hidden_size2, hidden_size3, hidden_size4, output_size, weight_init_std=0.01):
         # 가중치 초기화
         self.params = {}
         self.params['W1'] = weight_init_std * np.random.randn(input_size, hidden_size1)  # 표준 정규 분포를 따르는 난수 생성
         self.params['b1'] = np.zeros(hidden_size1)
         self.params['W2'] = weight_init_std * np.random.randn(hidden_size1, hidden_size2)
         self.params['b2'] = np.zeros(hidden_size2)
-        self.params['W3'] = weight_init_std * np.random.randn(hidden_size2, output_size)
-        self.params['b3'] = np.zeros(output_size)
+        self.params['W3'] = weight_init_std * np.random.randn(hidden_size2, hidden_size3)
+        self.params['b3'] = np.zeros(hidden_size3)
+        self.params['W4'] = weight_init_std * np.random.randn(hidden_size3, hidden_size4)
+        self.params['b4'] = np.zeros(hidden_size4)
+        self.params['W5'] = weight_init_std * np.random.randn(hidden_size4, output_size)
+        self.params['b5'] = np.zeros(output_size)
 
         # 계층 생성
         self.layers = OrderedDict()  # forward, backward 시 계층 순서대로 수행하기 위해 순서가 있는 OrderedDict 를 사용.
         self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
-        self.layers['BatchNorm1'] = BatchNormalization(gamma=1.0, beta=0.)
-        self.layers['Relu1'] = Relu()
-        self.layers['Dropout1'] = Dropout()
+        self.layers['Sigmoid1'] = Sigmoid()
         self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
-        self.layers['BatchNorm2'] = BatchNormalization(gamma=1.0, beta=0.)
-        self.layers['Relu2'] = Relu()
-        self.layers['Dropout2'] = Dropout()
+        self.layers['Sigmoid2'] = Sigmoid()
         self.layers['Affine3'] = Affine(self.params['W3'], self.params['b3'])
+        self.layers['Sigmoid3'] = Sigmoid()
+        self.layers['Affine4'] = Affine(self.params['W4'], self.params['b4'])
+        self.layers['Sigmoid4'] = Sigmoid()
+        self.layers['Affine5'] = Affine(self.params['W5'], self.params['b5'])
 
         self.lastLayer = SoftmaxWithLoss()
 
     def predict(self, x):
-        for name, layer in self.layers.items():  # Affine1 -> Batch Norm -> Relu1 -> Dropout1 -> Affine2 -> Batch Norm -> Relu2 -> Dropout2 -> Affine3
-            if name.find('BatchNorm') != -1:
-                x = layer.forward(x, self.is_train)  # batch norm 인 경우 train/test 에 따라 다르게 수행하기 위해 bool 값 전달
-            else:
-                x = layer.forward(x)
+        for layer in self.layers.values():  # Affine1 -> Relu1 -> Affine2
+            x = layer.forward(x)  # 각 계층마다 forward 수행
         return x
 
     # x : 입력 데이터, t : 정답 레이블
@@ -71,5 +71,7 @@ class TwoLayerNet:
         grads['W1'], grads['b1'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
         grads['W2'], grads['b2'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
         grads['W3'], grads['b3'] = self.layers['Affine3'].dW, self.layers['Affine3'].db
+        grads['W4'], grads['b4'] = self.layers['Affine4'].dW, self.layers['Affine4'].db
+        grads['W5'], grads['b5'] = self.layers['Affine5'].dW, self.layers['Affine5'].db
 
         return grads
