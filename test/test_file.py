@@ -23,3 +23,8 @@ print(np.mean(b == c))
 
 v = [1, 2, 3, 4, 5]
 print(np.mean(v))
+
+import numpy as np
+a = np.array([[12, 20, 30, 0], [8, 12, 2, 0], [34, 70, 37, 4], [112, 100, 25, 12]])
+b = np.array([[6, 7, 2, 5], [9, 21, 20, 4], [2, 5, 7, 9], [12, 14, 13, 22]])
+print(np.dot(a, b))

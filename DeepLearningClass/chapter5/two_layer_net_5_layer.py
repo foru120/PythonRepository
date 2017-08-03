@@ -7,7 +7,7 @@ from DeepLearningClass.common.layers import *
 from collections import OrderedDict
 
 class TwoLayerNet:
-    def __init__(self, input_size, hidden_size1, hidden_size2, hidden_size3, hidden_size4, output_size, weight_init_std=0.01):
+    def __init__(self, input_size, hidden_size1, hidden_size2, hidden_size3, hidden_size4, output_size, weight_init_std=0.1):
         # 가중치 초기화
         self.params = {}
         self.params['W1'] = weight_init_std * np.random.randn(input_size, hidden_size1)  # 표준 정규 분포를 따르는 난수 생성
@@ -24,13 +24,13 @@ class TwoLayerNet:
         # 계층 생성
         self.layers = OrderedDict()  # forward, backward 시 계층 순서대로 수행하기 위해 순서가 있는 OrderedDict 를 사용.
         self.layers['Affine1'] = Affine(self.params['W1'], self.params['b1'])
-        self.layers['Sigmoid1'] = Sigmoid()
+        self.layers['Sigmoid1'] = Relu()
         self.layers['Affine2'] = Affine(self.params['W2'], self.params['b2'])
-        self.layers['Sigmoid2'] = Sigmoid()
+        self.layers['Sigmoid2'] = Relu()
         self.layers['Affine3'] = Affine(self.params['W3'], self.params['b3'])
-        self.layers['Sigmoid3'] = Sigmoid()
+        self.layers['Sigmoid3'] = Relu()
         self.layers['Affine4'] = Affine(self.params['W4'], self.params['b4'])
-        self.layers['Sigmoid4'] = Sigmoid()
+        self.layers['Sigmoid4'] = Relu()
         self.layers['Affine5'] = Affine(self.params['W5'], self.params['b5'])
 
         self.lastLayer = SoftmaxWithLoss()
