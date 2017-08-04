@@ -41,6 +41,12 @@ class Model:
     def rmse(self, targets, predictions):
         return self.sess.run(self.rmse, feed_dict={self.targets: targets, self.predictions: predictions})
 
+n_inputs = 7
+n_sequences = 10
+n_hiddens = 50
+n_outputs = 1
+hidden_layer_cnt = 5
+
 def min_max_scaler(data):
     return (data - np.min(data, axis=0))/(np.max(data, axis=0) - np.min(data, axis=0) + 1e-5)
 
@@ -49,7 +55,15 @@ def read_data(file_name):
     data = data[:, 1:]
     data = data[np.sum(np.isnan(data), axis=1) == 0]
     data = min_max_scaler(data)
-    return data, data[:, [3]]
+    x, y = data, data[:, [3]]
+    dataX = []
+    dataY = []
+    for i in range(0, len(data) - n_sequences):
+        _x = x[i:i + n_sequences]
+        _y = y[i + n_sequences]
+        dataX.append(_x)
+        dataY.append(_y)
+    return dataX, dataY
 
 file_list = os.listdir('data/')
 model_list = []
@@ -59,7 +73,8 @@ epochs = 20
 
 with tf.Session() as sess:
     for idx, file_name in enumerate(file_list):
-        model_list.append(Model(sess=sess, n_inputs=7, n_sequences=10, n_hiddens=100, n_outputs=1, hidden_layer_cnt=5, file_name=file_name, model_name='Model_'+str(idx+1)))
+        model_list.append(Model(sess=sess, n_inputs=n_inputs, n_sequences=n_sequences, n_hiddens=n_hiddens,
+                                n_outputs=n_outputs, hidden_layer_cnt=hidden_layer_cnt, file_name=file_name, model_name='Model_'+str(idx+1)))
 
     sess.run(tf.global_variables_initializer())
 
@@ -69,7 +84,7 @@ with tf.Session() as sess:
         test_X, test_Y = total_X[int(len(total_Y)*0.7):], total_Y[int(len(total_Y)*0.7):]  # test 데이터
         train_len, test_len = len(train_Y), len(test_Y)
 
-        print(model, ', training start -')
+        print(model.model_name, ', training start -')
         for epoch in range(epochs):
             train_loss = 0.
             for idx in range(0, train_len, batch_size):
@@ -81,9 +96,9 @@ with tf.Session() as sess:
                 train_loss += loss / sample_size
                 train_len -= sample_size
             print('Model :', model.model_name, ', epoch :', epoch, ', loss :', train_loss)
-        print(model, ', training end -\n')
+        print(model.model_name, ', training end -\n')
 
-        print(model, ', testing start -')
+        print(model.model_name, ', testing start -')
         test_rmse = 0.
         for idx in range(0, train_len, batch_size):
             sample_size = test_len if idx + batch_size > test_len else batch_size
@@ -95,4 +110,4 @@ with tf.Session() as sess:
             test_rmse += rmse / sample_size
             test_len -= sample_size
         print('Model :', model.model_name, ', rmse :', test_rmse)
-        print(model, ', testing end -\n')
+        print(model.model_name, ', testing end -\n')
