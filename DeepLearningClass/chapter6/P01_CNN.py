@@ -227,3 +227,98 @@ for idx in range(x.shape[0]):
     result = np.array(result).reshape(-1, 8)
     print(result)
     print(result.shape)
+
+
+print('====================================================================================================')
+print('== NCS 문제 3. 0부터 80까지의 원소로 이루어진 9x9 행렬을 만들고 0부터 15까지의 원소로 이루어진 4x4 필터를 이용해서 합성곱을 하시오!')
+print('====================================================================================================\n')
+import numpy as np
+x = np.arange(0, 81).reshape((-1, 9))
+x = np.pad(x, pad_width=2, mode='constant', constant_values=0)
+f = np.arange(0, 16).reshape((-1, 4))
+
+result = []
+
+for rn in range(x.shape[0]-4):
+    for cn in range(x.shape[1]-4):
+        result.append(np.sum(x[rn:rn+4, cn:cn+4] * f))
+result = np.array(result).reshape(-1, 9)
+print(result)
+print(result.shape)
+
+
+print('====================================================================================================')
+print('== NCS 문제 4. 문제 3번을 다시 수행하는데 원소의 값은 똑같고 입력값의 채널이 3차원일때의 합성곱을 구하시오!')
+print('====================================================================================================\n')
+x = np.array([np.arange(0, 81).reshape((-1, 9)) for _ in range(10)])
+f = np.array([np.arange(0, 16).reshape((-1, 4)) for _ in range(10)])
+
+for idx in range(x.shape[0]):
+    temp = np.pad(x[idx], pad_width=2, mode='constant', constant_values=0)
+    result = []
+    for rn in range(temp.shape[0]-4):
+        for cn in range(temp.shape[1]-4):
+            result.append(np.sum(temp[rn:rn+4, cn:cn+4] * f))
+    result = np.array(result).reshape(-1, 9)
+    print(result)
+    print(result.shape)
+
+
+print('====================================================================================================')
+print('== 문제 164. (점심시간 문제) 문제 162번 최대 풀링을 파이썬으로 구현하시오.')
+print('====================================================================================================\n')
+a = np.array([[21, 8, 8, 12], [12, 19, 9, 7], [8, 10, 4, 3], [18, 12, 9, 10]])
+
+def pooling(x):
+    result = []
+    w, h = x.shape
+    for i in range(0, w, 2):
+        for j in range(0, h, 2):
+            result.append(np.max(x[i:i+2, j:j+2]))
+    return np.array(result).reshape((2, 2))
+print(pooling(a))
+
+
+print('====================================================================================================')
+print('== 문제 167. 0부터 15까지 원소로 이루어진 4x4 행렬을 만들고 0부터 8까지의 원소로 이루어진 3x3 필터를 이용해서'
+      '합성곱을 하는데 이번에는 im2col 을 활용해서 수행하시오.')
+print('====================================================================================================\n')
+def im2col(input_data, filter_h, filter_w, stride=1, pad=0):
+    """다수의 이미지를 입력받아 2차원 배열로 변환한다(평탄화).
+
+    Parameters
+    ----------
+    input_data : 4차원 배열 형태의 입력 데이터(이미지 수, 채널 수, 높이, 너비)
+    filter_h : 필터의 높이
+    filter_w : 필터의 너비
+    stride : 스트라이드
+    pad : 패딩
+
+    Returns
+    -------
+    col : 2차원 배열
+    """
+    C, H, W = input_data.shape
+    N = 1
+    out_h = (H + 2 * pad - filter_h) // stride + 1
+    out_w = (W + 2 * pad - filter_w) // stride + 1
+
+    img = np.pad(input_data, [(0, 0), (0, 0), (pad, pad), (pad, pad)], 'constant')
+    col = np.zeros((N, C, filter_h, filter_w, out_h, out_w))
+
+    for y in range(filter_h):
+        y_max = y + stride * out_h
+        for x in range(filter_w):
+            x_max = x + stride * out_w
+            col[:, :, y, x, :, :] = img[:, :, y:y_max:stride, x:x_max:stride]
+
+    col = col.transpose(0, 4, 5, 1, 2, 3).reshape(N * out_h * out_w, -1)
+    return col
+
+x = np.array([np.arange(0, 16).reshape((-1, 4)) for _ in range(10)])
+x = np.pad(x, pad_width=1, mode='constant', constant_values=0)
+f = np.array([np.arange(0, 9).reshape((-1, 3)) for _ in range(10)])
+
+result = im2col(x, 3, 3, 1, 1)
+print(result)
+print(result.shape)

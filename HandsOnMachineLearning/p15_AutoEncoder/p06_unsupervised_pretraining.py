@@ -25,11 +25,11 @@ regularizer = tf.contrib.layers.l2_regularizer(l2_reg)
 initializer = tf.contrib.layers.variance_scaling_initializer()
 
 X = tf.placeholder(tf.float32, shape=[None, n_inputs])
-y = tf.placeholder(tf.int32, shape=[None, 10])
+y = tf.placeholder(tf.int32, shape=[None])
 
 weights1_init = initializer([n_inputs, n_hidden1])
 weights2_init = initializer([n_hidden1, n_hidden2])
-weights3_init = initializer([n_hidden2, n_hidden3])
+weights3_init = initializer([n_hidden2, n_output])
 
 weights1 = tf.Variable(weights1_init, dtype=tf.float32, name='weights1')
 weights2 = tf.Variable(weights2_init, dtype=tf.float32, name='weights2')
@@ -37,7 +37,7 @@ weights3 = tf.Variable(weights3_init, dtype=tf.float32, name='weights3')
 
 biases1 = tf.Variable(tf.zeros(n_hidden1), name='biases1')
 biases2 = tf.Variable(tf.zeros(n_hidden2), name='biases2')
-biases3 = tf.Variable(tf.zeros(n_hidden3), name='biases3')
+biases3 = tf.Variable(tf.zeros(n_output), name='biases3')
 
 hidden1 = activation(tf.matmul(X, weights1) + biases1)
 hidden2 = activation(tf.matmul(hidden1, weights2) + biases2)
@@ -60,7 +60,7 @@ n_epochs = 4
 batch_size = 150
 n_labeled_instances = 20000
 
-mnist = input_data.read_data_sets('MNIST_data/', one_hot=True)
+mnist = input_data.read_data_sets('MNIST_data/', one_hot=False)
 
 with tf.Session() as sess:
     init.run()
@@ -75,5 +75,24 @@ with tf.Session() as sess:
         accuracy_val = accuracy.eval(feed_dict={X: X_batch, y: y_batch})
         print('\r{}'.format(epoch), 'Train accuracy :', accuracy_val, end=' ')
         saver.save(sess, 'logs/my_model_supervised.ckpt')
+        accuracy_val = accuracy.eval(feed_dict={X: mnist.test.images, y: mnist.test.labels})
+        print('Test accuracy :', accuracy_val)
+
+tf.reset_default_graph()
+
+with tf.Session() as sess:
+    init.run()
+    pretrain_saver.restore(sess, 'logs/my_model_supervised.ckpt')
+    for epoch in range(n_epochs):
+        n_batches = n_labeled_instances // batch_size
+        for iteration in range(n_batches):
+            print('\r{}%'.format(100 * iteration // n_batches), end='')
+            sys.stdout.flush()
+            indices = rnd.permutation(n_labeled_instances)[:batch_size]
+            X_batch, y_batch = mnist.train.images[indices], mnist.train.labels[indices]
+            sess.run(training_op, feed_dict={X: X_batch, y: y_batch})
+        accuracy_val = accuracy.eval(feed_dict={X: X_batch, y: y_batch})
+        print('\r{}'.format(epoch), 'Train accuracy :', accuracy_val, end='\t')
+        saver.save(sess, 'logs/my_model_supervised_pretrained.ckpt')
         accuracy_val = accuracy.eval(feed_dict={X: mnist.test.images, y: mnist.test.labels})
         print('Test accuracy :', accuracy_val)

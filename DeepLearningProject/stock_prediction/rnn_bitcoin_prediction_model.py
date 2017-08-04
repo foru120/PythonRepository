@@ -43,7 +43,7 @@ class Model:
 
 n_inputs = 7
 n_sequences = 10
-n_hiddens = 50
+n_hiddens = 10
 n_outputs = 1
 hidden_layer_cnt = 5
 
