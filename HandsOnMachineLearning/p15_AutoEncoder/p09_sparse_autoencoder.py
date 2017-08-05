@@ -18,6 +18,13 @@ X = tf.placeholder(tf.float32, shape=[None, n_inputs])
 hidden1 = tf.layers.dense(X, n_hidden1, activation=tf.nn.sigmoid)
 outputs = tf.layers.dense(hidden1, n_outputs)
 
+# To speed up training, with cross entropy
+# logits = tf.layers.dense(hidden1, n_outputs)
+# outputs = tf.nn.sigmoid(logits)
+#
+# xentropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=X, logits=logits)
+# reconstruction_loss = tf.reduce_mean(xentropy)
+
 hidden1_mean = tf.reduce_mean(hidden1, axis=0)
 sparsity_loss = tf.reduce_sum(kl_divergence(sparsity_target, hidden1_mean))
 reconstruction_loss = tf.reduce_mean(tf.square(outputs - X))
