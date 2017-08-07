@@ -27,8 +27,8 @@ class RNN_Model:
 
             self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
             self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
-            self.fc_1 = tf.contrib.layers.fully_connected(self.outputs[:, -1], 250, activation_fn=None)
-            self.Y_ = tf.contrib.layers.fully_connected(self.fc_1, self.n_outputs, activation_fn=None)
+            output_for_fc = tf.reshape(self.outputs, [-1, self.n_hiddens])
+            self.Y_ = tf.contrib.layers.fully_connected(output_for_fc, self.n_outputs, activation_fn=None)
 
             self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
             self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
@@ -68,8 +68,8 @@ class CNN_Model:
 
 n_inputs = 7
 n_sequences = 10
-n_hiddens = 200
-n_outputs = 1
+n_hiddens = 7
+n_outputs = 10
 hidden_layer_cnt = 5
 
 def min_max_scaler(data):
@@ -83,9 +83,9 @@ def read_data(file_name):
     x, y = data, data[:, [3]]
     dataX = []
     dataY = []
-    for i in range(0, len(data) - n_sequences):
-        _x = x[i:i + n_sequences]
-        _y = y[i + n_sequences]
+    for i in range(0, len(data) - n_sequences - 1):
+        _x = x[i: i + n_sequences]
+        _y = np.array(y[i+1: i + n_sequences + 1]).flatten().tolist()
         dataX.append(_x)
         dataY.append(_y)
     return dataX, dataY
@@ -99,7 +99,7 @@ epochs = 20
 with tf.Session() as sess:
     for idx, file_name in enumerate(file_list):
         model_list.append(RNN_Model(sess=sess, n_inputs=n_inputs, n_sequences=n_sequences, n_hiddens=n_hiddens,
-                                n_outputs=n_outputs, hidden_layer_cnt=hidden_layer_cnt, file_name=file_name, model_name='Model_'+str(idx+1)))
+                                    n_outputs=n_outputs, hidden_layer_cnt=hidden_layer_cnt, file_name=file_name, model_name='Model_'+str(idx+1)))
 
     sess.run(tf.global_variables_initializer())
 
@@ -120,6 +120,7 @@ with tf.Session() as sess:
                 batch_X, batch_Y = train_X[idx: idx+sample_size], train_Y[idx: idx+sample_size]
                 reg_loss, loss, _ = model.train(batch_X, batch_Y)
                 predicts = model.predict(batch_X)
+                print(predicts)
                 train_loss += loss / sample_size
                 train_len -= sample_size
             print('Model :', model.model_name, ', epoch :', epoch+1, ', loss :', train_loss)
@@ -137,7 +138,7 @@ with tf.Session() as sess:
             sample_size = test_len if batch_size > test_len else batch_size
             batch_X, batch_Y = test_X[idx: idx + sample_size], test_Y[idx: idx + sample_size]
             predicts = model.predict(batch_X)
-            rmse = model.rmse_predict(batch_Y, predicts)
+            rmse = model.rmse_predict(batch_Y, predicts[:, -1])
             test_rmse += rmse / sample_size
             test_len -= sample_size
         print('Model :', model.model_name, ', rmse :', test_rmse)
