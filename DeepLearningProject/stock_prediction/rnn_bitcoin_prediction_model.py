@@ -2,8 +2,9 @@ import os
 import numpy as np
 import tensorflow as tf
 import time
+import re
 
-class Model:
+class RNN_Model:
     def __init__(self, sess, n_inputs, n_sequences, n_hiddens, n_outputs, hidden_layer_cnt, file_name, model_name):
         self.sess = sess
         self.n_inputs = n_inputs
@@ -29,7 +30,7 @@ class Model:
             self.fc_1 = tf.contrib.layers.fully_connected(self.outputs[:, -1], 250, activation_fn=None)
             self.Y_ = tf.contrib.layers.fully_connected(self.fc_1, self.n_outputs, activation_fn=None)
 
-            self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables()])
+            self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
             self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
             self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
@@ -55,6 +56,16 @@ class Model:
         self.training = False
         return self.sess.run(self.rmse, feed_dict={self.targets: targets, self.predictions: predictions})
 
+class CNN_Model:
+    def __init__(self, sess, model_name):
+        self.sess = sess
+        self.model_name = model_name
+        self._build_net()
+
+    def _build_net(self):
+        with tf.variable_scope(self.model_name):
+            pass
+
 n_inputs = 7
 n_sequences = 10
 n_hiddens = 200
@@ -62,7 +73,7 @@ n_outputs = 1
 hidden_layer_cnt = 5
 
 def min_max_scaler(data):
-    return (data - np.min(data, axis=0))/(np.max(data, axis=0) - np.min(data, axis=0) + 1e-5)
+    return (data - np.min(data, axis=0)) / (np.max(data, axis=0) - np.min(data, axis=0) + 1e-5)
 
 def read_data(file_name):
     data = np.loadtxt('data/'+file_name, delimiter=',', skiprows=1)
@@ -87,7 +98,7 @@ epochs = 20
 
 with tf.Session() as sess:
     for idx, file_name in enumerate(file_list):
-        model_list.append(Model(sess=sess, n_inputs=n_inputs, n_sequences=n_sequences, n_hiddens=n_hiddens,
+        model_list.append(RNN_Model(sess=sess, n_inputs=n_inputs, n_sequences=n_sequences, n_hiddens=n_hiddens,
                                 n_outputs=n_outputs, hidden_layer_cnt=hidden_layer_cnt, file_name=file_name, model_name='Model_'+str(idx+1)))
 
     sess.run(tf.global_variables_initializer())
@@ -103,15 +114,22 @@ with tf.Session() as sess:
         print('train data -', train_len, ', test data -', test_len)
         for epoch in range(epochs):
             train_loss = 0.
+            pred_data = np.zeros(train_len, dtype=np.float32)
             for idx in range(0, train_len, batch_size):
                 sample_size = train_len if batch_size > train_len else batch_size
                 batch_X, batch_Y = train_X[idx: idx+sample_size], train_Y[idx: idx+sample_size]
                 reg_loss, loss, _ = model.train(batch_X, batch_Y)
+                predicts = model.predict(batch_X)
                 train_loss += loss / sample_size
                 train_len -= sample_size
             print('Model :', model.model_name, ', epoch :', epoch+1, ', loss :', train_loss)
             train_len, test_len = len(train_Y), len(test_Y)
-        print(model.model_name, ', training end -\n')
+            etime = time.time()
+            print(model.model_name, ', training end -', etime-stime, '\n')
+
+
+
+
 
         print(model.model_name, ', testing start -')
         test_rmse = 0.
@@ -122,7 +140,5 @@ with tf.Session() as sess:
             rmse = model.rmse_predict(batch_Y, predicts)
             test_rmse += rmse / sample_size
             test_len -= sample_size
-        etime = time.time()
         print('Model :', model.model_name, ', rmse :', test_rmse)
         print(model.model_name, ', testing end -')
-        print(model.model_name, ', time -', etime-stime, '\n')

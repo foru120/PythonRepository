@@ -63,6 +63,8 @@
 ##   - tf.train.ProximalAdagradOptimizer
 ########################################################################################################################
 import tensorflow as tf
+import numpy as np
+import time
 
 class Model:
     def __init__(self, sess, name):
@@ -96,27 +98,24 @@ class Model:
             with tf.name_scope('conv_layer1') as scope:
                 self.W1_sub = tf.get_variable(name='W1_sub', shape=[3, 3, 1, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L1_sub = tf.nn.conv2d(input=X_img, filter=self.W1_sub, strides=[1, 1, 1, 1], padding='VALID')  # 126x126 -> 122x122
-                self.L1_sub = self.batch_norm(input=self.L1_sub, shape=20, training=self.training, convl=True, name='Conv1_sub_BN')
-                self.L1_sub = tf.nn.tanh(self.L1_sub, 'R1_sub')
-                # self.L1_sub = self.parametric_relu(self.L1_sub, 'R1_sub')
+                self.L1_sub = self.BN(input=self.L1_sub, scale= True,  training=self.training, name='Conv1_sub_BN')
+                self.L1_sub = self.parametric_relu(self.L1_sub, 'R1_sub')
 
                 self.W2_sub = tf.get_variable(name='W2_sub', shape=[3, 3, 20, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L2_sub = tf.nn.conv2d(input=self.L1_sub, filter=self.W2_sub, strides=[1, 1, 1, 1], padding='VALID')  # 122x122 -> 120x120
-                self.L2_sub = self.batch_norm(input=self.L2_sub, shape=20, training=self.training, convl=True, name='Conv2_sub_BN')
-                self.L2_sub = tf.nn.tanh(self.L2_sub, 'R2_sub')
-                # self.L2_sub = self.parametric_relu(self.L2_sub, 'R2_sub')
+                self.L3_sub = self.BN(input=self.L2_sub, scale=True, training=self.training, name='Conv2_sub_BN')
+                self.L2_sub = self.parametric_relu(self.L2_sub, 'R2_sub')
 
                 self.W3_sub = tf.get_variable(name='W3_sub', shape=[3, 3, 20, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L3_sub = tf.nn.conv2d(input=self.L2_sub, filter=self.W3_sub, strides=[1, 1, 1, 1], padding='VALID')  # 122x122 -> 120x120
-                self.L3_sub = self.batch_norm(input=self.L3_sub, shape=20, training=self.training, convl=True, name='Conv3_sub_BN')
-                self.L3_sub = tf.nn.tanh(self.L3_sub, 'R3_sub')
-                # self.L3_sub = self.parametric_relu(self.L3_sub, 'R3_sub')
+                self.L3_sub = self.BN(input=self.L3_sub, scale=True, training=self.training, name='Conv3_sub_BN')
+                self.L3_sub = self.parametric_relu(self.L3_sub, 'R3_sub')
                 ###################################################################################################################
                 ## ▣ Local Response Normalization 구현
                 ##  ⊙ conv 계층과 pool 계층 사이에 넣는 정규화 기법
                 ##  ⊙ depth_radius = conv layer 총 개수 , bias / alpha / beta 값은 임의의 파라미터(AlexNet 의 파라미터로 임시 지정)
                 ###################################################################################################################
-                # self.L1 = tf.nn.lrn(self.L3_sub, depth_radius=7, bias=2, alpha=0.0001, beta=0.75, name='LRN1')
+                # self.L1 = tf.nn.lrn(self.L3_sub, depth_radius=5, bias=2, alpha=0.0001, beta=0.75, name='LRN1')
                 self.L1 = tf.nn.max_pool(value=self.L3_sub, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 120x120 -> 60x60
                 # self.L1 = tf.layers.dropout(inputs=self.L1, rate=self.dropout_rate, training=self.training)
 
@@ -130,14 +129,14 @@ class Model:
             with tf.name_scope('conv_layer2') as scope:
                 self.W2 = tf.get_variable(name='W2', shape=[3, 3, 20, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L2 = tf.nn.conv2d(input=self.L1, filter=self.W2, strides=[1, 1, 1, 1], padding='SAME')
-                self.L2 = self.batch_norm(input=self.L2, shape=40, training=self.training, convl=True, name='Conv2_BN')
+                self.L2 = self.BN(input=self.L2, scale=True, training=self.training, name='Conv2_BN')
                 self.L2 = self.parametric_relu(self.L2, 'R2')
                 ###################################################################################################################
                 ## ▣ Local Response Normalization 구현
                 ##  ⊙ conv 계층과 pool 계층 사이에 넣는 정규화 기법
                 ##  ⊙ depth_radius = conv layer 총 개수 , bias / alpha / beta 값은 임의의 파라미터(AlexNet 의 파라미터로 임시 지정)
                 ###################################################################################################################
-                # self.L2 = tf.nn.lrn(self.L2, depth_radius=7, bias=2, alpha=0.0001, beta=0.75, name='LRN2') # Local Response Normalization 구현
+                # self.L2 = tf.nn.lrn(self.L2, depth_radius=5, bias=2, alpha=0.0001, beta=0.75, name='LRN2') # Local Response Normalization 구현
                 self.L2 = tf.nn.max_pool(value=self.L2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 60x60 -> 30x30
                 # self.L2 = tf.layers.dropout(inputs=self.L2, rate=self.dropout_rate, training=self.training)
 
@@ -151,7 +150,7 @@ class Model:
             with tf.name_scope('conv_layer3') as scope:
                 self.W3 = tf.get_variable(name='W3', shape=[3, 3, 40, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L3 = tf.nn.conv2d(input=self.L2, filter=self.W3, strides=[1, 1, 1, 1], padding='SAME')
-                self.L3 = self.batch_norm(input=self.L3, shape=80, training=self.training, convl=True, name='Conv3_BN')
+                self.L3 = self.BN(input=self.L3, scale=True, training=self.training, name='Conv3_BN')
                 self.L3 = self.parametric_relu(self.L3, 'R3')
                 self.L3 = tf.nn.max_pool(value=self.L3, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 30x30 -> 15x15
                 # self.L3 = tf.layers.dropout(inputs=self.L3, rate=self.dropout_rate, training=self.training)
@@ -166,7 +165,7 @@ class Model:
             with tf.name_scope('conv_layer4') as scope:
                 self.W4 = tf.get_variable(name='W4', shape=[3, 3, 80, 160], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L4 = tf.nn.conv2d(input=self.L3, filter=self.W4, strides=[1, 1, 1, 1], padding='SAME')
-                self.L4 = self.batch_norm(input=self.L4, shape=160, training=self.training, convl=True, name='Conv4_BN')
+                self.L4 = self.BN(input=self.L4, scale=True, training=self.training, name='Conv4_sub_BN')
                 self.L4 = self.parametric_relu(self.L4, 'R4')
                 self.L4 = tf.nn.max_pool(value=self.L4, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 15x15 -> 8x8
                 # self.L4 = tf.layers.dropout(inputs=self.L4, rate=self.dropout_rate, training=self.training)
@@ -182,7 +181,7 @@ class Model:
             with tf.name_scope('conv_layer5') as scope:
                 self.W5 = tf.get_variable(name='W5', shape=[3, 3, 160, 320], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L5 = tf.nn.conv2d(input=self.L4, filter=self.W5, strides=[1, 1, 1, 1], padding='SAME')
-                self.L5 = self.batch_norm(input=self.L5, shape=320, training=self.training, convl=True, name='Conv5_BN')
+                self.L5 = self.BN(input=self.L5, scale=True, training=self.training, name='Conv5_sub_BN')
                 self.L5 = self.parametric_relu(self.L5, 'R5')
                 self.L5 = tf.nn.max_pool(value=self.L5, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')  # 8x8 -> 4x4
                 # self.L5 = tf.layers.dropout(inputs=self.L5, rate=self.dropout_rate, training=self.training)
@@ -199,7 +198,7 @@ class Model:
                 self.W_fc1 = tf.get_variable(name='W_fc1', shape=[4 * 4 * 320, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.b_fc1 = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b_fc1'))
                 self.L6 = tf.matmul(self.L5, self.W_fc1) + self.b_fc1
-                self.L6 = self.batch_norm(input=self.L6, shape=1000, training=self.training, convl=False, name='FC1_BN')
+                self.L6 = self.BN(input=self.L6, scale=True, training=self.training, name='Conv6_sub_BN')
                 self.L_fc1 = self.parametric_relu(self.L6, 'R_fc1')
                 # self.L_fc1 = tf.layers.dropout(inputs=self.L_fc1, rate=self.dropout_rate, training=self.training)
 
@@ -214,7 +213,7 @@ class Model:
                 self.W_fc2 = tf.get_variable(name='W_fc2', shape=[1000, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.b_fc2 = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b_fc2'))
                 self.L7 = tf.matmul(self.L_fc1, self.W_fc2) + self.b_fc2
-                self.L7 = self.batch_norm(input=self.L7, shape=1000, training=self.training, convl=False, name='FC2_BN')
+                self.L7 = self.BN(input=self.L7, scale=True, training=self.training, name='Conv7_sub_BN')
                 self.L_fc2 = self.parametric_relu(self.L7, 'R_fc2')
                 # self.L_fc2 = tf.layers.dropout(inputs=self.L_fc2, rate=self.dropout_rate, training=self.training)
 
@@ -233,7 +232,7 @@ class Model:
         ##  ⊙ λ/(2*N)*Σ(W)²-> (0.001/(2*tf.to_float(tf.shape(self.X)[0])))*tf.reduce_sum(tf.square(self.W7))
         ################################################################################################################
         self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + (0.01/(2*tf.to_float(tf.shape(self.Y)[0])))*tf.reduce_sum(tf.square(self.W_out))
-        self.optimizer = tf.train.AdamOptimizer(learning_rate=0.001).minimize(self.cost)
+        self.optimizer = tf.train.AdamOptimizer(learning_rate=0.005).minimize(self.cost)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), tf.arg_max(self.Y, 1)), dtype=tf.float32))
 
         # self.tensorflow_summary()
@@ -332,22 +331,21 @@ class Model:
     ## ▣ Batch Normalization - Created by 조원태,박상범
     ##  ⊙ training 하는 과정 자체를 전체적으로 안정화하여 학습 속도를 가속시킬 수 있는 방법
     ##  ⊙ Network의 각 층이나 Activation 마다 input_data 의 distribution 을 평균 0, 표준편차 1인 input_data로 정규화시키는 방법
-    ##  ⊙ 초기 파라미터 --> beta : 0 , gamma : 1 , decay : 0.5 , epsilon : 0.001
+    ##  ⊙ 초기 파라미터 --> beta : 0 , gamma : 1 , decay : 0.99 , epsilon : 0.001
     ####################################################################################################################
-    def batch_norm(self,input, shape, training, convl=True, name='BN'):
-        beta = tf.Variable(tf.constant(0.0, shape=[shape]), name='beta', trainable=True)
-        scale = tf.Variable(tf.constant(1.0, shape=[shape]), name='gamma', trainable=True)
-        if convl:
-            batch_mean, batch_var = tf.nn.moments(input, [0, 1, 2], name='moments')
+    def BN(self, input, training, scale, name, decay=0.99):
+        return tf.contrib.layers.batch_norm(input, decay=decay, scale=scale, is_training=training, updates_collections=None, scope=name)
+
+    ####################################################################################################################
+    ## ▣ dynamic_learning - Created by 조원태
+    ##  ⊙ epoch 가 클수록 아니면 early_stopping 이 시작되면 점차적으로 learning_rate의 값을 줄여 안정적인 훈련이 가능한 방법
+    ####################################################################################################################
+    def dynamic_learning(self,learning_rate,earlystop,epoch):
+        max_learning_rate = learning_rate
+        min_learing_rate = 0.001
+        learning_decay = 60 # 낮을수록 빨리 떨어진다.
+        if earlystop >= 1:
+            lr = min_learing_rate + (max_learning_rate - min_learing_rate) * np.exp(-epoch / learning_decay)
         else:
-            batch_mean, batch_var = tf.nn.moments(input, [0], name='moments')
-        ema = tf.train.ExponentialMovingAverage(decay=0.5)
-        def mean_var_with_update():
-            ema_apply_op = ema.apply([batch_mean, batch_var])
-            with tf.control_dependencies([ema_apply_op]):
-                return tf.identity(batch_mean), tf.identity(batch_var)
-        mean, var = tf.cond(training,
-                             mean_var_with_update,
-                            lambda: (ema.average(batch_mean), ema.average(batch_var)),
-                            lambda: (batch_mean,batch_var))
-        return tf.nn.batch_normalization(input, mean, var, beta, scale, variance_epsilon=1e-3, name=name)
+            lr = max_learning_rate
+        return round(lr,4)

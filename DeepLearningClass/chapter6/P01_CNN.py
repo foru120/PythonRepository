@@ -283,6 +283,7 @@ print('=========================================================================
 print('== 문제 167. 0부터 15까지 원소로 이루어진 4x4 행렬을 만들고 0부터 8까지의 원소로 이루어진 3x3 필터를 이용해서'
       '합성곱을 하는데 이번에는 im2col 을 활용해서 수행하시오.')
 print('====================================================================================================\n')
+import numpy as np
 def im2col(input_data, filter_h, filter_w, stride=1, pad=0):
     """다수의 이미지를 입력받아 2차원 배열로 변환한다(평탄화).
 
@@ -319,6 +320,6 @@ x = np.array([np.arange(0, 16).reshape((-1, 4)) for _ in range(10)])
 x = np.pad(x, pad_width=1, mode='constant', constant_values=0)
 f = np.array([np.arange(0, 9).reshape((-1, 3)) for _ in range(10)])
 
-result = im2col(x, 3, 3, 1, 1)
+result = im2col(x, 3, 3, 1)
 print(result)
 print(result.shape)
