@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
+import time
 
 class Model:
     def __init__(self, sess, n_inputs, n_sequences, n_hiddens, n_outputs, hidden_layer_cnt, file_name, model_name):
@@ -12,6 +13,8 @@ class Model:
         self.hidden_layer_cnt = hidden_layer_cnt
         self.file_name = file_name
         self.model_name = model_name
+        self.regularizer = tf.contrib.layers.l2_regularizer(0.001)
+        self.training = True
         self._build_net()
 
     def _build_net(self):
@@ -21,29 +24,40 @@ class Model:
             self.X = tf.placeholder(tf.float32, [None, self.n_sequences, self.n_inputs])
             self.Y = tf.placeholder(tf.float32, [None, self.n_outputs])
 
-            self.multi_cells = tf.contrib.rnn.MultiRNNCell([tf.contrib.rnn.BasicLSTMCell(num_units=self.n_hiddens, state_is_tuple=True) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
+            self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
             self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
-            self.Y_pred = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
+            self.fc_1 = tf.contrib.layers.fully_connected(self.outputs[:, -1], 250, activation_fn=None)
+            self.Y_ = tf.contrib.layers.fully_connected(self.fc_1, self.n_outputs, activation_fn=None)
 
-            self.loss = tf.reduce_sum(tf.square(self.Y_pred - self.Y))
+            self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables()])
+            self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
             self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
             self.targets = tf.placeholder(tf.float32, [None, 1])
             self.predictions = tf.placeholder(tf.float32, [None, 1])
             self.rmse = tf.sqrt(tf.reduce_mean(tf.square(self.targets - self.predictions)))
 
+    def lstm_cell(self, hidden_size):
+        cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
+        if self.training:
+            cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
+        return cell
+
     def train(self, x_data, y_data):
-        return self.sess.run([self.loss, self.optimizer], feed_dict={self.X: x_data, self.Y: y_data})
+        self.training = True
+        return self.sess.run([self.reg_loss, self.loss, self.optimizer], feed_dict={self.X: x_data, self.Y: y_data})
 
     def predict(self, x_data):
-        return self.sess.run(self.Y_pred, feed_dict={self.X: x_data})
+        self.training = False
+        return self.sess.run(self.Y_, feed_dict={self.X: x_data})
 
-    def rmse(self, targets, predictions):
+    def rmse_predict(self, targets, predictions):
+        self.training = False
         return self.sess.run(self.rmse, feed_dict={self.targets: targets, self.predictions: predictions})
 
 n_inputs = 7
 n_sequences = 10
-n_hiddens = 10
+n_hiddens = 200
 n_outputs = 1
 hidden_layer_cnt = 5
 
@@ -84,30 +98,31 @@ with tf.Session() as sess:
         test_X, test_Y = total_X[int(len(total_Y)*0.7):], total_Y[int(len(total_Y)*0.7):]  # test 데이터
         train_len, test_len = len(train_Y), len(test_Y)
 
+        stime = time.time()
         print(model.model_name, ', training start -')
+        print('train data -', train_len, ', test data -', test_len)
         for epoch in range(epochs):
             train_loss = 0.
             for idx in range(0, train_len, batch_size):
-                sample_size = train_len if idx + batch_size > train_len else batch_size
-                if sample_size < batch_size:
-                    break
+                sample_size = train_len if batch_size > train_len else batch_size
                 batch_X, batch_Y = train_X[idx: idx+sample_size], train_Y[idx: idx+sample_size]
-                loss, _ = model.train(batch_X, batch_Y)
+                reg_loss, loss, _ = model.train(batch_X, batch_Y)
                 train_loss += loss / sample_size
                 train_len -= sample_size
-            print('Model :', model.model_name, ', epoch :', epoch, ', loss :', train_loss)
+            print('Model :', model.model_name, ', epoch :', epoch+1, ', loss :', train_loss)
+            train_len, test_len = len(train_Y), len(test_Y)
         print(model.model_name, ', training end -\n')
 
         print(model.model_name, ', testing start -')
         test_rmse = 0.
-        for idx in range(0, train_len, batch_size):
-            sample_size = test_len if idx + batch_size > test_len else batch_size
-            if sample_size < batch_size:
-                break
+        for idx in range(0, test_len, batch_size):
+            sample_size = test_len if batch_size > test_len else batch_size
             batch_X, batch_Y = test_X[idx: idx + sample_size], test_Y[idx: idx + sample_size]
             predicts = model.predict(batch_X)
-            rmse = model.rmse(batch_Y, predicts)
+            rmse = model.rmse_predict(batch_Y, predicts)
             test_rmse += rmse / sample_size
             test_len -= sample_size
+        etime = time.time()
         print('Model :', model.model_name, ', rmse :', test_rmse)
-        print(model.model_name, ', testing end -\n')
+        print(model.model_name, ', testing end -')
+        print(model.model_name, ', time -', etime-stime, '\n')
