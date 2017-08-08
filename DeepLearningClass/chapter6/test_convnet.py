@@ -10,6 +10,7 @@ from DeepLearningClass.common.gradient import numerical_gradient
 import matplotlib.pyplot as plt
 from DeepLearningClass.dataset.mnist import load_mnist
 from DeepLearningClass.common.trainer import Trainer
+from DeepLearningClass.common.optimizer import *
 
 class SimpleConvNet:
     """단순한 합성곱 신경망
@@ -166,6 +167,7 @@ test_acc_list = []
 # 1에폭당 반복 수
 iter_per_epoch = max(train_size / batch_size, 1)
 # print(iter_per_epoch)  # 600
+optimizer = AdaGrad()
 for i in range(iters_num):  # 10000
     # 미니배치 획득  # 랜덤으로 100개씩 뽑아서 10000번을 수행하니까 백만번
     batch_mask = np.random.choice(train_size, batch_size)  # 100개 씩 뽑아서 10000 번 백만번
@@ -176,7 +178,8 @@ for i in range(iters_num):  # 10000
     grad = network.gradient(x_batch, t_batch)
     # 매개변수 갱신
     for key in ('W1', 'b1', 'W2', 'b2'):
-        network.params[key] -= learning_rate * grad[key]
+        # network.params[key] -= learning_rate * grad[key]
+        optimizer.update(network.params, grad)
         # 학습 경과 기록
         loss = network.loss(x_batch, t_batch)
         train_loss_list.append(loss)  # cost 가 점점 줄어드는것을 보려고
