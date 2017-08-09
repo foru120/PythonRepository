@@ -3,6 +3,7 @@ import numpy as np
 import tensorflow as tf
 import time
 import re
+import matplotlib.pyplot as plt
 
 class RNN_Model:
     def __init__(self, sess, n_inputs, n_sequences, n_hiddens, n_outputs, hidden_layer_cnt, file_name, model_name):
@@ -69,42 +70,42 @@ class CNN_Model:
 
                 self.X = tf.placeholder(dtype=tf.float32, shape=[None, 100])
                 X_data = tf.reshape(self.X, [-1, 10, 10, 1])
-                self.Y = tf.placeholder(dtype=tf.float32, shape=[None, 10])
+                self.Y = tf.placeholder(dtype=tf.float32, shape=[None, 100])
 
             with tf.name_scope('conv_layer'):
                 self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 3, 1, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='VALID')  # 10x10 -> 8x10
+                self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='VALID')  # 10x10 -> 10x8
                 self.L1_conv = self.BN(input=self.L1_conv, training=self.training, name='L1_conv_BN')
                 self.L1_conv = self.parametric_relu(self.L1_conv, 'R1_conv')
 
-                self.W2_conv = tf.get_variable(name='W2_conv', shape=[1, 3, 40, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L2_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W2_conv, strides=[1, 1, 1, 1], padding='VALID')  # 8x10 -> 8x8
+                self.W2_conv = tf.get_variable(name='W2_conv', shape=[3, 1, 40, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L2_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W2_conv, strides=[1, 1, 1, 1], padding='VALID')  # 10x8 -> 8x8
                 self.L2_conv = self.BN(input=self.L2_conv, training=self.training, name='L2_conv_BN')
                 self.L2_conv = self.parametric_relu(self.L2_conv, 'R2_conv')
 
                 self.W3_conv = tf.get_variable(name='W3_conv', shape=[1, 3, 40, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L3_conv = tf.nn.conv2d(input=self.L2_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='VALID')  # 8x8 -> 6x8
+                self.L3_conv = tf.nn.conv2d(input=self.L2_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='VALID')  # 8x8 -> 8x6
                 self.L3_conv = self.BN(input=self.L3_conv, training=self.training, name='L3_conv_BN')
                 self.L3_conv = self.parametric_relu(self.L3_conv, 'R3_conv')
 
-                self.W4_conv = tf.get_variable(name='W4_conv', shape=[1, 3, 80, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L4_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W4_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x8 -> 6x6
+                self.W4_conv = tf.get_variable(name='W4_conv', shape=[3, 1, 80, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L4_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W4_conv, strides=[1, 1, 1, 1], padding='VALID')  # 8x6 -> 6x6
                 self.L4_conv = self.BN(input=self.L4_conv, training=self.training, name='L4_conv_BN')
                 self.L4_conv = self.parametric_relu(self.L4_conv, 'R4_conv')
 
-                self.W5_conv = tf.get_variable(name='W5_conv', shape=[1, 3, 80, 160], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L5_conv = tf.nn.conv2d(input=self.L4_conv, filter=self.W5_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x6 -> 4x6
+                self.W5_conv = tf.get_variable(name='W5_conv', shape=[1, 3, 80, 120], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L5_conv = tf.nn.conv2d(input=self.L4_conv, filter=self.W5_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x6 -> 6x4
                 self.L5_conv = self.BN(input=self.L5_conv, training=self.training, name='L5_conv_BN')
                 self.L5_conv = self.parametric_relu(self.L5_conv, 'R5_conv')
 
-                self.W6_conv = tf.get_variable(name='W6_conv', shape=[1, 3, 160, 160], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L6_conv = tf.nn.conv2d(input=self.L5_conv, filter=self.W2_conv, strides=[1, 1, 1, 1], padding='VALID')  # 4x6 -> 4x4
+                self.W6_conv = tf.get_variable(name='W6_conv', shape=[3, 1, 120, 120], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L6_conv = tf.nn.conv2d(input=self.L5_conv, filter=self.W6_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x4 -> 4x4
                 self.L6_conv = self.BN(input=self.L6_conv, training=self.training, name='L6_conv_BN')
                 self.L6_conv = self.parametric_relu(self.L6_conv, 'R6_conv')
-                self.L6_conv = tf.reshape(self.L6_conv, [-1, 4 * 4 * 160])
+                self.L6_conv = tf.reshape(self.L6_conv, [-1, 4 * 4 * 120])
 
             with tf.name_scope('fc_layer'):
-                self.W1_fc = tf.get_variable(name='W1_fc', shape=[4 * 4 * 160, 650], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W1_fc = tf.get_variable(name='W1_fc', shape=[4 * 4 * 120, 650], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[650], name='b1_fc'))
                 self.L1_fc = tf.matmul(self.L6_conv, self.W1_fc) + self.b1_fc
                 self.L1_fc = self.BN(input=self.L1_fc, training=self.training, name='L1_fc_BN')
@@ -116,8 +117,8 @@ class CNN_Model:
                 self.L2_fc = self.BN(input=self.L2_fc, training=self.training, name='L2_fc_BN')
                 self.L2_fc = self.parametric_relu(self.L2_fc, 'R2_fc')
 
-            self.W_out = tf.get_variable(name='W_out', shape=[650, 10], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-            self.b_out = tf.Variable(tf.constant(value=0.001, shape=[10], name='b_out'))
+            self.W_out = tf.get_variable(name='W_out', shape=[650, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            self.b_out = tf.Variable(tf.constant(value=0.001, shape=[100], name='b_out'))
             self.logits = tf.matmul(self.L2_fc, self.W_out) + self.b_out
 
             self.reg_cost = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.get_variable_scope().trainable_variables() if re.search(self.model_name+'\/W', train_var.name) is not None])
@@ -144,12 +145,6 @@ class CNN_Model:
     def train(self, x_data, y_data):
         return self.sess.run([self.cost, self.optimizer], feed_dict={self.X: x_data, self.Y: y_data, self.training: True})
 
-n_inputs = 7
-n_sequences = 10
-n_hiddens = 7
-n_outputs = 1
-hidden_layer_cnt = 5
-
 def min_max_scaler(data):
     return (data - np.min(data, axis=0)) / (np.max(data, axis=0) - np.min(data, axis=0) + 1e-5)
 
@@ -169,12 +164,20 @@ def read_data(file_name):
         dataY.append(_y)
     return dataX, dataY
 
+n_inputs = 7
+n_sequences = 10
+n_hiddens = 7
+n_outputs = 1
+hidden_layer_cnt = 3
+
 file_list = os.listdir('data/')
 rnn_model_list = []
 cnn_model_list = []
+cnn_input_size = 10 * 10
 
 batch_size = 100
 epochs = 20
+step_size = batch_size * cnn_input_size
 
 with tf.Session() as sess:
     for idx, file_name in enumerate(file_list):
@@ -193,7 +196,7 @@ with tf.Session() as sess:
         train_len, test_len = len(train_Y), len(test_Y)
 
         stime = time.time()
-        print(rnn_model.model_name, ', training start -')
+        print('training start -')
         print('train data -', train_len, ', test data -', test_len)
         for epoch in range(epochs):
             train_loss = 0.
@@ -213,26 +216,57 @@ with tf.Session() as sess:
 
             train_loss = 0.
             estime = time.time()
-            for idx in range(0, len(pred_data) - batch_size - 101):
-                batch_X, batch_Y = pred_data[idx: idx + (batch_size + 100)], train_Y[n_sequences + idx + 100: n_sequences + idx + (batch_size + 100) + 1]
+            for idx in range(0, len(pred_data) - step_size, step_size):
+                if idx + step_size > len(pred_data):
+                    sample_size = (idx + step_size) - len(pred_data) - (((idx + step_size) - len(pred_data)) % cnn_input_size)
+                else:
+                    sample_size = step_size
+                batch_X, batch_Y = np.array(pred_data[idx: idx + sample_size]).reshape([int(sample_size/cnn_input_size), cnn_input_size]).tolist(), \
+                                   np.array(train_Y[n_sequences + idx: n_sequences + idx + sample_size]).reshape([int(sample_size/cnn_input_size), cnn_input_size]).tolist()
                 loss, _ = cnn_model.train(batch_X, batch_Y)
+                train_loss += loss / int(sample_size/cnn_input_size)
             eetime = time.time()
-
+            print('CNN Model :', cnn_model.model_name, ', epoch :', epoch + 1, ', loss :', train_loss, ' -', eetime - estime)
         etime = time.time()
-        print(rnn_model.model_name, ', training end -', etime-stime, '\n')
+        print('training end -', etime-stime, '\n')
 
-
-
-
-
-        print(model.model_name, ', testing start -')
+        print('testing start -')
         test_rmse = 0.
+        pred_data = np.zeros(test_len, dtype=np.float32)
         for idx in range(0, test_len, batch_size):
             sample_size = test_len if batch_size > test_len else batch_size
             batch_X, batch_Y = test_X[idx: idx + sample_size], test_Y[idx: idx + sample_size]
-            predicts = model.predict(batch_X)
-            rmse = model.rmse_predict(batch_Y, predicts[:, -1])
+            predicts = rnn_model.predict(batch_X)
+            rmse = rnn_model.rmse_predict(batch_Y, predicts)
             test_rmse += rmse / sample_size
             test_len -= sample_size
-        print('Model :', model.model_name, ', rmse :', test_rmse)
-        print(model.model_name, ', testing end -')
+        print('RNN Model :', rnn_model.model_name, ', rmse :', test_rmse)
+
+        cnt = 0
+        test_loss = 0.
+        accuracy = 0.
+        estime = time.time()
+        final_predicts = []
+        final_y = []
+        for idx in range(0, len(pred_data) - step_size, step_size):
+            if idx + step_size > len(pred_data):
+                sample_size = (idx + step_size) - len(pred_data) - (((idx + step_size) - len(pred_data)) % cnn_input_size)
+            else:
+                sample_size = step_size
+            batch_X, batch_Y = np.array(pred_data[idx: idx + sample_size]).reshape([int(sample_size / cnn_input_size), cnn_input_size]).tolist(), \
+                               np.array(test_Y[n_sequences + idx: n_sequences + idx + sample_size]).reshape([int(sample_size / cnn_input_size), cnn_input_size]).tolist()
+            predicts = cnn_model.predict(batch_X)
+            final_predicts += np.array(predicts).flatten().tolist()
+            final_y += np.array(batch_Y).flatten().tolist()
+            loss, _ = cnn_model.train(batch_X, batch_Y)
+            test_loss += loss / int(sample_size / cnn_input_size)
+        eetime = time.time()
+        print('CNN Model :', cnn_model.model_name, ', loss :', test_loss, ' -', eetime - estime)
+        print('testing end -')
+
+        # Plot predictions
+        plt.plot(final_y)
+        plt.plot(final_predicts)
+        plt.xlabel("Time Period")
+        plt.ylabel("Stock Price")
+        plt.show()

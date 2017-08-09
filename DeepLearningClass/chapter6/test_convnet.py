@@ -31,26 +31,31 @@ class SimpleConvNet:
         filter_pad = conv_param['pad']
         filter_stride = conv_param['stride']
         input_size = input_dim[1]
-        conv_output_size = (input_size - filter_size + 2 * filter_pad) / filter_stride + 1
-        self.pool_output_size = int(filter_num * (conv_output_size / 2) * (conv_output_size / 2))
+        # conv_output_size = (input_size - filter_size + 2 * filter_pad) / filter_stride + 1
+        # self.pool_output_size = int(filter_num * (conv_output_size / 2) * (conv_output_size / 2) * 2)
 
         # 가중치 초기화
         self.params = {}
         self.params['W1'] = weight_init_std * np.random.randn(filter_num, input_dim[0], filter_size, filter_size)
         self.params['b1'] = np.zeros(filter_num)
-        self.params['W2'] = weight_init_std * np.random.randn(self.pool_output_size, hidden_size)
-        self.params['b2'] = np.zeros(hidden_size)
-        self.params['W3'] = weight_init_std * np.random.randn(hidden_size, output_size)
-        self.params['b3'] = np.zeros(output_size)
+        self.params['W2'] = weight_init_std * np.random.randn(filter_num*2, filter_num, filter_size, filter_size)
+        self.params['b2'] = np.zeros(filter_num*2)
+        self.params['W3'] = weight_init_std * np.random.randn(4*4*filter_num*2, hidden_size)
+        self.params['b3'] = np.zeros(hidden_size)
+        self.params['W4'] = weight_init_std * np.random.randn(hidden_size, output_size)
+        self.params['b4'] = np.zeros(output_size)
 
         # 계층 생성
         self.layers = OrderedDict()
         self.layers['Conv1'] = Convolution(self.params['W1'], self.params['b1'], conv_param['stride'], conv_param['pad'])
         self.layers['Relu1'] = Relu()
         self.layers['Pool1'] = Pooling(pool_h=2, pool_w=2, stride=2)
-        self.layers['Affine1'] = Affine(self.params['W2'], self.params['b2'])
+        self.layers['Conv2'] = Convolution(self.params['W2'], self.params['b2'], conv_param['stride'], conv_param['pad'])
         self.layers['Relu2'] = Relu()
-        self.layers['Affine2'] = Affine(self.params['W3'], self.params['b3'])
+        self.layers['Pool2'] = Pooling(pool_h=2, pool_w=2, stride=2)
+        self.layers['Affine1'] = Affine(self.params['W3'], self.params['b3'])
+        self.layers['Relu3'] = Relu()
+        self.layers['Affine2'] = Affine(self.params['W4'], self.params['b4'])
         self.last_layer = SoftmaxWithLoss()
 
     def predict(self, x):
@@ -94,7 +99,7 @@ class SimpleConvNet:
         """
         loss_w = lambda w: self.loss(x, t)
         grads = {}
-        for idx in (1, 2, 3):
+        for idx in (1, 2, 3, 4):
             grads['W' + str(idx)] = numerical_gradient(loss_w, self.params['W' + str(idx)])
             grads['b' + str(idx)] = numerical_gradient(loss_w, self.params['b' + str(idx)])
         return grads
@@ -123,8 +128,9 @@ class SimpleConvNet:
         # 결과 저장
         grads = {}
         grads['W1'], grads['b1'] = self.layers['Conv1'].dW, self.layers['Conv1'].db
-        grads['W2'], grads['b2'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
-        grads['W3'], grads['b3'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
+        grads['W2'], grads['b2'] = self.layers['Conv2'].dW, self.layers['Conv2'].db
+        grads['W3'], grads['b3'] = self.layers['Affine1'].dW, self.layers['Affine1'].db
+        grads['W4'], grads['b4'] = self.layers['Affine2'].dW, self.layers['Affine2'].db
         return grads
 
     def save_params(self, file_name="params.pkl"):
@@ -140,7 +146,7 @@ class SimpleConvNet:
         for key, val in params.items():
             self.params[key] = val
 
-        for i, key in enumerate(['Conv1', 'Affine1', 'Affine2']):
+        for i, key in enumerate(['Conv1', 'Conv2', 'Affine1', 'Affine2']):
             self.layers[key].W = self.params['W' + str(i + 1)]
             self.layers[key].b = self.params['b' + str(i + 1)]
 
