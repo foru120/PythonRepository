@@ -1,11 +1,17 @@
-import numpy as np
+import tensorflow as tf
 
-a = np.zeros(50)
-b = np.ones(5)
-a[:5] = 0.5 * (a[:5] + b)
-print(a)
+correct_prediction = [ True, False , True  ,True  ,True  ,True  ,True,  True  ,True  ,True  ,True  ,True
+  ,True  ,True  ,True, False , True  ,True, False , True  ,True  ,True  ,True  ,True
+  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True
+  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True,
+  True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True
+  ,True  ,True  ,True  ,True  ,True  ,True ,False , True  ,True  ,True  ,True  ,True
+  ,True  ,True, False , True, False , True  ,True  ,True  ,True  ,True  ,True  ,True
+  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True  ,True
+ ,False , True  ,True  ,True]
 
-a = []
-a += [1,2]
-a += [3,4]
-print(a)
+a = tf.reduce_mean(tf.cast(correct_prediction, dtype=tf.float32))
+
+with tf.Session() as sess:
+    sess.run(tf.global_variables_initializer())
+    print(sess.run(a))

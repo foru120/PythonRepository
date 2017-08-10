@@ -20,28 +20,30 @@ class RNN_Model:
         self._build_net()
 
     def _build_net(self):
-        with tf.variable_scope(self.model_name):
-            self.learning_rate = 0.001
+        with tf.device('/cpu:0'):
+            with tf.variable_scope(self.model_name):
+                self.learning_rate = 0.001
 
-            self.X = tf.placeholder(tf.float32, [None, self.n_sequences, self.n_inputs])
-            self.Y = tf.placeholder(tf.float32, [None, self.n_outputs])
+                self.X = tf.placeholder(tf.float32, [None, self.n_sequences, self.n_inputs])
+                self.Y = tf.placeholder(tf.float32, [None, self.n_outputs])
 
-            self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
-            self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
-            self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
-            self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
-            self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
-            self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+                self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
+                self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
+                self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
+                self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
+                self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
+                self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
-            self.targets = tf.placeholder(tf.float32, [None, 1])
-            self.predictions = tf.placeholder(tf.float32, [None, 1])
-            self.rmse = tf.sqrt(tf.reduce_mean(tf.square(self.targets - self.predictions)))
+                self.targets = tf.placeholder(tf.float32, [None, 1])
+                self.predictions = tf.placeholder(tf.float32, [None, 1])
+                self.rmse = tf.sqrt(tf.reduce_mean(tf.square(self.targets - self.predictions)))
 
     def lstm_cell(self, hidden_size):
-        cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
-        if self.training:
-            cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
-        return cell
+        with tf.device('/cpu:0'):
+            cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
+            if self.training:
+                cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
+            return cell
 
     def train(self, x_data, y_data):
         self.training = True
@@ -102,7 +104,7 @@ class CNN_Model:
                 self.L6_conv = tf.nn.conv2d(input=self.L5_conv, filter=self.W6_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x4 -> 4x4
                 self.L6_conv = self.BN(input=self.L6_conv, training=self.training, name='L6_conv_BN')
                 self.L6_conv = self.parametric_relu(self.L6_conv, 'R6_conv')
-                self.L6_conv = tf.reshape(self.L6_conv, [-1, 4 * 4 * 40])
+                self.L6_conv = tf.reshape(self.L6_conv, [-1, 4 * 4 * 80])
 
             with tf.name_scope('fc_layer'):
                 self.W1_fc = tf.get_variable(name='W1_fc', shape=[4 * 4 * 80, 650], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
@@ -122,7 +124,8 @@ class CNN_Model:
             self.logits = tf.matmul(self.L2_fc, self.W_out) + self.b_out
 
             self.reg_cost = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.get_variable_scope().trainable_variables() if re.search(self.model_name+'\/W', train_var.name) is not None])
-            self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + 0.0005 * self.reg_cost
+            self.cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + 0.0005 * self.reg_cost
+            # self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + 0.0005 * self.reg_cost
 
         self.optimizer = tf.train.AdamOptimizer(learning_rate=0.005).minimize(self.cost)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), tf.arg_max(self.Y, 1)), dtype=tf.float32))
@@ -265,8 +268,8 @@ with tf.Session() as sess:
         print('testing end -')
 
         # Plot predictions
-        plt.plot(final_y)
-        plt.plot(final_predicts)
+        plt.plot(final_y, label='y')
+        plt.plot(final_predicts, label='predict')
         plt.xlabel("Time Period")
         plt.ylabel("Stock Price")
         plt.legend(loc=1)
