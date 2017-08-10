@@ -73,39 +73,39 @@ class CNN_Model:
                 self.Y = tf.placeholder(dtype=tf.float32, shape=[None, 100])
 
             with tf.name_scope('conv_layer'):
-                self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 3, 1, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 3, 1, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='VALID')  # 10x10 -> 10x8
                 self.L1_conv = self.BN(input=self.L1_conv, training=self.training, name='L1_conv_BN')
                 self.L1_conv = self.parametric_relu(self.L1_conv, 'R1_conv')
 
-                self.W2_conv = tf.get_variable(name='W2_conv', shape=[3, 1, 40, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W2_conv = tf.get_variable(name='W2_conv', shape=[3, 1, 20, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L2_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W2_conv, strides=[1, 1, 1, 1], padding='VALID')  # 10x8 -> 8x8
                 self.L2_conv = self.BN(input=self.L2_conv, training=self.training, name='L2_conv_BN')
                 self.L2_conv = self.parametric_relu(self.L2_conv, 'R2_conv')
 
-                self.W3_conv = tf.get_variable(name='W3_conv', shape=[1, 3, 40, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W3_conv = tf.get_variable(name='W3_conv', shape=[1, 3, 20, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L3_conv = tf.nn.conv2d(input=self.L2_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='VALID')  # 8x8 -> 8x6
                 self.L3_conv = self.BN(input=self.L3_conv, training=self.training, name='L3_conv_BN')
                 self.L3_conv = self.parametric_relu(self.L3_conv, 'R3_conv')
 
-                self.W4_conv = tf.get_variable(name='W4_conv', shape=[3, 1, 80, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W4_conv = tf.get_variable(name='W4_conv', shape=[3, 1, 40, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L4_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W4_conv, strides=[1, 1, 1, 1], padding='VALID')  # 8x6 -> 6x6
                 self.L4_conv = self.BN(input=self.L4_conv, training=self.training, name='L4_conv_BN')
                 self.L4_conv = self.parametric_relu(self.L4_conv, 'R4_conv')
 
-                self.W5_conv = tf.get_variable(name='W5_conv', shape=[1, 3, 80, 120], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W5_conv = tf.get_variable(name='W5_conv', shape=[1, 3, 40, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L5_conv = tf.nn.conv2d(input=self.L4_conv, filter=self.W5_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x6 -> 6x4
                 self.L5_conv = self.BN(input=self.L5_conv, training=self.training, name='L5_conv_BN')
                 self.L5_conv = self.parametric_relu(self.L5_conv, 'R5_conv')
 
-                self.W6_conv = tf.get_variable(name='W6_conv', shape=[3, 1, 120, 120], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W6_conv = tf.get_variable(name='W6_conv', shape=[3, 1, 80, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.L6_conv = tf.nn.conv2d(input=self.L5_conv, filter=self.W6_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x4 -> 4x4
                 self.L6_conv = self.BN(input=self.L6_conv, training=self.training, name='L6_conv_BN')
                 self.L6_conv = self.parametric_relu(self.L6_conv, 'R6_conv')
-                self.L6_conv = tf.reshape(self.L6_conv, [-1, 4 * 4 * 120])
+                self.L6_conv = tf.reshape(self.L6_conv, [-1, 4 * 4 * 40])
 
             with tf.name_scope('fc_layer'):
-                self.W1_fc = tf.get_variable(name='W1_fc', shape=[4 * 4 * 120, 650], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W1_fc = tf.get_variable(name='W1_fc', shape=[4 * 4 * 80, 650], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[650], name='b1_fc'))
                 self.L1_fc = tf.matmul(self.L6_conv, self.W1_fc) + self.b1_fc
                 self.L1_fc = self.BN(input=self.L1_fc, training=self.training, name='L1_fc_BN')
@@ -269,4 +269,5 @@ with tf.Session() as sess:
         plt.plot(final_predicts)
         plt.xlabel("Time Period")
         plt.ylabel("Stock Price")
+        plt.legend(loc=1)
         plt.show()
