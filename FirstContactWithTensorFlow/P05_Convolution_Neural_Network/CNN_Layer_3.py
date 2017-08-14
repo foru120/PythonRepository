@@ -152,6 +152,7 @@ y_conv = tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
 #  - 경사 감소법 : ADAM 알고리즘, tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
 cross_entropy = -tf.reduce_sum(y_ * tf.log(y_conv))
 train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+# train_step = tf.train.AdagradOptimizer(1e-4).minimize(cross_entropy)
 # train_step = tf.train.AdadeltaOptimizer(1e-4).minimize(cross_entropy)
 
 #  - 정확도 측정 : 측정치와 정답 레이블이 같은지 비교 후 해당 Bool 값을 실수로 변환후 그것들의 평균을 구한다.

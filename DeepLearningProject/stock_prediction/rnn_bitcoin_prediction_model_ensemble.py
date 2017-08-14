@@ -4,6 +4,7 @@ import tensorflow as tf
 import time
 import re
 import matplotlib.pyplot as plt
+from DeepLearningProject.stock_prediction.lstm_cell import BNLSTMCell
 
 class RNN_Model:
     def __init__(self, sess, n_inputs, n_sequences, n_hiddens, n_outputs, hidden_layer_cnt, file_name, model_name):
@@ -40,7 +41,8 @@ class RNN_Model:
 
     def lstm_cell(self, hidden_size):
         with tf.device('/cpu:0'):
-            cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
+            cell = BNLSTMCell(hidden_size, self.training)
+            # cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
             if self.training:
                 cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
             return cell
@@ -75,51 +77,36 @@ class CNN_Model:
                 self.Y = tf.placeholder(dtype=tf.float32, shape=[None, 100])
 
             with tf.name_scope('conv_layer'):
-                self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 3, 1, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='VALID')  # 10x10 -> 10x8
+                self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 5, 1, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='SAME')  # 10x10 -> 10x8
                 self.L1_conv = self.BN(input=self.L1_conv, training=self.training, name='L1_conv_BN')
                 self.L1_conv = self.parametric_relu(self.L1_conv, 'R1_conv')
 
-                self.W2_conv = tf.get_variable(name='W2_conv', shape=[3, 1, 20, 20], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L2_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W2_conv, strides=[1, 1, 1, 1], padding='VALID')  # 10x8 -> 8x8
-                self.L2_conv = self.BN(input=self.L2_conv, training=self.training, name='L2_conv_BN')
-                self.L2_conv = self.parametric_relu(self.L2_conv, 'R2_conv')
-
-                self.W3_conv = tf.get_variable(name='W3_conv', shape=[1, 3, 20, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L3_conv = tf.nn.conv2d(input=self.L2_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='VALID')  # 8x8 -> 8x6
+                self.W3_conv = tf.get_variable(name='W3_conv', shape=[1, 5, 100, 200], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L3_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='SAME')  # 8x8 -> 8x6
                 self.L3_conv = self.BN(input=self.L3_conv, training=self.training, name='L3_conv_BN')
                 self.L3_conv = self.parametric_relu(self.L3_conv, 'R3_conv')
 
-                self.W4_conv = tf.get_variable(name='W4_conv', shape=[3, 1, 40, 40], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L4_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W4_conv, strides=[1, 1, 1, 1], padding='VALID')  # 8x6 -> 6x6
-                self.L4_conv = self.BN(input=self.L4_conv, training=self.training, name='L4_conv_BN')
-                self.L4_conv = self.parametric_relu(self.L4_conv, 'R4_conv')
-
-                self.W5_conv = tf.get_variable(name='W5_conv', shape=[1, 3, 40, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L5_conv = tf.nn.conv2d(input=self.L4_conv, filter=self.W5_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x6 -> 6x4
+                self.W5_conv = tf.get_variable(name='W5_conv', shape=[1, 5, 200, 300], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L5_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W5_conv, strides=[1, 1, 1, 1], padding='SAME')  # 6x6 -> 6x4
                 self.L5_conv = self.BN(input=self.L5_conv, training=self.training, name='L5_conv_BN')
                 self.L5_conv = self.parametric_relu(self.L5_conv, 'R5_conv')
-
-                self.W6_conv = tf.get_variable(name='W6_conv', shape=[3, 1, 80, 80], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L6_conv = tf.nn.conv2d(input=self.L5_conv, filter=self.W6_conv, strides=[1, 1, 1, 1], padding='VALID')  # 6x4 -> 4x4
-                self.L6_conv = self.BN(input=self.L6_conv, training=self.training, name='L6_conv_BN')
-                self.L6_conv = self.parametric_relu(self.L6_conv, 'R6_conv')
-                self.L6_conv = tf.reshape(self.L6_conv, [-1, 4 * 4 * 80])
+                self.L5_conv = tf.reshape(self.L5_conv, [-1, 10 * 10 * 300])
 
             with tf.name_scope('fc_layer'):
-                self.W1_fc = tf.get_variable(name='W1_fc', shape=[4 * 4 * 80, 650], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[650], name='b1_fc'))
-                self.L1_fc = tf.matmul(self.L6_conv, self.W1_fc) + self.b1_fc
+                self.W1_fc = tf.get_variable(name='W1_fc', shape=[10 * 10 * 300, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b1_fc'))
+                self.L1_fc = tf.matmul(self.L5_conv, self.W1_fc) + self.b1_fc
                 self.L1_fc = self.BN(input=self.L1_fc, training=self.training, name='L1_fc_BN')
                 self.L1_fc = self.parametric_relu(self.L1_fc, 'R1_fc')
 
-                self.W2_fc = tf.get_variable(name='W2_fc', shape=[650, 650], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b2_fc = tf.Variable(tf.constant(value=0.001, shape=[650], name='b2_fc'))
+                self.W2_fc = tf.get_variable(name='W2_fc', shape=[1000, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b2_fc = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b2_fc'))
                 self.L2_fc = tf.matmul(self.L1_fc, self.W2_fc) + self.b2_fc
                 self.L2_fc = self.BN(input=self.L2_fc, training=self.training, name='L2_fc_BN')
                 self.L2_fc = self.parametric_relu(self.L2_fc, 'R2_fc')
 
-            self.W_out = tf.get_variable(name='W_out', shape=[650, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            self.W_out = tf.get_variable(name='W_out', shape=[1000, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             self.b_out = tf.Variable(tf.constant(value=0.001, shape=[100], name='b_out'))
             self.logits = tf.matmul(self.L2_fc, self.W_out) + self.b_out
 
@@ -180,7 +167,7 @@ cnn_models_list = []
 cnn_input_size = 10 * 10
 
 batch_size = 100
-epochs = 2
+epochs = 20
 step_size = batch_size * cnn_input_size
 
 num_cnn_models = 5
@@ -284,16 +271,25 @@ with tf.Session() as sess:
             print('CNN Model :', cnn_model.model_name, ', loss :', test_loss_list[idx])
         print('testing end -')
 
+        ensemble_predicts = np.mean(final_predicts, axis=0)
+
         # Plot predictions
-        numrow = np.ceil(num_cnn_models / 3)
-        plt.figure(1)
-        for idx in range(num_cnn_models):
-            # ex) subplot(231) -> row=2, col=3, fignum=1 (1 ~ 2*3)
-            plt.subplot(100 * numrow + 30 + idx + 1)
-            plt.plot(final_y[idx], label='y_model' + str(idx+1))
-            plt.plot(final_predicts[idx], label='predict' + str(idx+1))
-            plt.xlabel("Time Period")
-            plt.ylabel("Stock Price")
-            plt.legend(loc=1)
+        plt.plot(final_y[0][::60], label='y')
+        plt.plot(ensemble_predicts[::60], label='predict')
+        plt.xlabel("Time Period")
+        plt.ylabel("Stock Price")
+        plt.legend(loc=1)
         plt.show()
-        break
+
+        # Plot predictions
+        # numrow = np.ceil(num_cnn_models / 3)
+        # plt.figure(1)
+        # for idx in range(num_cnn_models):
+        #     # ex) subplot(231) -> row=2, col=3, fignum=1 (1 ~ 2*3)
+        #     plt.subplot(100 * numrow + 30 + idx + 1)
+        #     plt.plot(final_y[idx][::60], label='y_model' + str(idx+1))
+        #     plt.plot(final_predicts[idx][::60], label='predict' + str(idx+1))
+        #     plt.xlabel("Time Period")
+        #     plt.ylabel("Stock Price")
+        #     plt.legend(loc=1)
+        # plt.show()

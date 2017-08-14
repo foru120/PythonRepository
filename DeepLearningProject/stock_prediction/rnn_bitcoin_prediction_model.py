@@ -167,7 +167,7 @@ cnn_model_list = []
 cnn_input_size = 10 * 10
 
 batch_size = 100
-epochs = 50
+epochs = 20
 step_size = batch_size * cnn_input_size
 
 with tf.Session() as sess:
@@ -252,12 +252,12 @@ with tf.Session() as sess:
             loss, _ = cnn_model.train(batch_X, batch_Y)
             test_loss += loss / int(sample_size / cnn_input_size)
         eetime = time.time()
-        print('CNN Model :', cnn_model.model_name, ', loss :', test_loss, ' -', eetime - estime)
+        print('CNN Model :', cnn_model.model_name, ', loss :', test_loss)
         print('testing end -')
 
         # Plot predictions
-        plt.plot(final_y, label='y')
-        plt.plot(final_predicts, label='predict')
+        plt.plot(final_y[::60], label='y')
+        plt.plot(final_predicts[::60], label='predict')
         plt.xlabel("Time Period")
         plt.ylabel("Stock Price")
         plt.legend(loc=1)
