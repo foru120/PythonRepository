@@ -21,31 +21,29 @@ class RNN_Model:
         self._build_net()
 
     def _build_net(self):
-        with tf.device('/cpu:0'):
-            with tf.variable_scope(self.model_name):
-                self.learning_rate = 0.001
+        with tf.variable_scope(self.model_name):
+            self.learning_rate = 0.001
 
-                self.X = tf.placeholder(tf.float32, [None, self.n_sequences, self.n_inputs])
-                self.Y = tf.placeholder(tf.float32, [None, self.n_outputs])
+            self.X = tf.placeholder(tf.float32, [None, self.n_sequences, self.n_inputs])
+            self.Y = tf.placeholder(tf.float32, [None, self.n_outputs])
 
-                self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
-                self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
-                self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
-                self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
-                self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
-                self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+            self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
+            self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
+            self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
+            self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
+            self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
+            self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
-                self.targets = tf.placeholder(tf.float32, [None, 1])
-                self.predictions = tf.placeholder(tf.float32, [None, 1])
-                self.rmse = tf.sqrt(tf.reduce_mean(tf.square(self.targets - self.predictions)))
+            self.targets = tf.placeholder(tf.float32, [None, 1])
+            self.predictions = tf.placeholder(tf.float32, [None, 1])
+            self.rmse = tf.sqrt(tf.reduce_mean(tf.square(self.targets - self.predictions)))
 
     def lstm_cell(self, hidden_size):
-        with tf.device('/cpu:0'):
-            cell = BNLSTMCell(hidden_size, self.training)
-            # cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
-            if self.training:
-                cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
-            return cell
+        cell = BNLSTMCell(hidden_size, self.training)
+        # cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
+        if self.training:
+            cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
+        return cell
 
     def train(self, x_data, y_data):
         self.training = True
@@ -73,7 +71,7 @@ class CNN_Model:
                 self.regularizer = tf.contrib.layers.l2_regularizer(0.0005)
 
                 self.X = tf.placeholder(dtype=tf.float32, shape=[None, 100])
-                X_data = tf.reshape(self.X, [-1, 10, 10, 1])
+                X_data = tf.reshape(self.X, [-1, 1, 100, 1])
                 self.Y = tf.placeholder(dtype=tf.float32, shape=[None, 100])
 
             with tf.name_scope('conv_layer'):
