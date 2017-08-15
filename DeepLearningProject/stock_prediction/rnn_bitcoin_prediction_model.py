@@ -29,7 +29,11 @@ class RNN_Model:
 
             self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
             self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
-            self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
+
+            self.outputs = tf.reshape(self.outputs, shape=[-1, self.n_sequences * self.n_hiddens])
+            self.fc1 = tf.contrib.layers.fully_connected(self.outputs, 200)
+            self.Y_ = tf.contrib.layers.fully_connected(self.fc1, self.n_outputs, activation_fn=None)
+            # self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
             self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
             self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
             self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
@@ -75,43 +79,41 @@ class CNN_Model:
                 self.Y = tf.placeholder(dtype=tf.float32, shape=[None, 100])
 
             with tf.name_scope('conv_layer'):
-                self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 5, 1, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='SAME')  # 10x10 -> 10x8
+                self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 20, 1, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x100 -> 1x81
                 self.L1_conv = self.BN(input=self.L1_conv, training=self.training, name='L1_conv_BN')
                 self.L1_conv = self.parametric_relu(self.L1_conv, 'R1_conv')
 
-                self.W3_conv = tf.get_variable(name='W3_conv', shape=[1, 5, 100, 200], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L3_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='SAME')  # 8x8 -> 8x6
+                self.W2_conv = tf.get_variable(name='W2_conv', shape=[1, 20, 100, 200], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L2_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W2_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x81 -> 1x62
+                self.L2_conv = self.BN(input=self.L2_conv, training=self.training, name='L2_conv_BN')
+                self.L2_conv = self.parametric_relu(self.L2_conv, 'R2_conv')
+
+                self.W3_conv = tf.get_variable(name='W3_conv', shape=[1, 20, 200, 300], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L3_conv = tf.nn.conv2d(input=self.L2_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x62 -> 1x43
                 self.L3_conv = self.BN(input=self.L3_conv, training=self.training, name='L3_conv_BN')
                 self.L3_conv = self.parametric_relu(self.L3_conv, 'R3_conv')
-
-                self.W5_conv = tf.get_variable(name='W5_conv', shape=[1, 5, 200, 300], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L5_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W5_conv, strides=[1, 1, 1, 1], padding='SAME')  # 6x6 -> 6x4
-                self.L5_conv = self.BN(input=self.L5_conv, training=self.training, name='L5_conv_BN')
-                self.L5_conv = self.parametric_relu(self.L5_conv, 'R5_conv')
-                self.L5_conv = tf.reshape(self.L5_conv, [-1, 10 * 10 * 300])
+                self.L3_conv = tf.reshape(self.L3_conv, [-1, 1 * 43 * 300])
 
             with tf.name_scope('fc_layer'):
-                self.W1_fc = tf.get_variable(name='W1_fc', shape=[10 * 10 * 300, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b1_fc'))
-                self.L1_fc = tf.matmul(self.L5_conv, self.W1_fc) + self.b1_fc
+                self.W1_fc = tf.get_variable(name='W1_fc', shape=[1 * 43 * 300, 500], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[500], name='b1_fc'))
+                self.L1_fc = tf.matmul(self.L3_conv, self.W1_fc) + self.b1_fc
                 self.L1_fc = self.BN(input=self.L1_fc, training=self.training, name='L1_fc_BN')
                 self.L1_fc = self.parametric_relu(self.L1_fc, 'R1_fc')
 
-                self.W2_fc = tf.get_variable(name='W2_fc', shape=[1000, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b2_fc = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b2_fc'))
+                self.W2_fc = tf.get_variable(name='W2_fc', shape=[500, 500], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b2_fc = tf.Variable(tf.constant(value=0.001, shape=[500], name='b2_fc'))
                 self.L2_fc = tf.matmul(self.L1_fc, self.W2_fc) + self.b2_fc
                 self.L2_fc = self.BN(input=self.L2_fc, training=self.training, name='L2_fc_BN')
                 self.L2_fc = self.parametric_relu(self.L2_fc, 'R2_fc')
 
-            self.W_out = tf.get_variable(name='W_out', shape=[1000, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            self.W_out = tf.get_variable(name='W_out', shape=[500, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             self.b_out = tf.Variable(tf.constant(value=0.001, shape=[100], name='b_out'))
             self.logits = tf.matmul(self.L2_fc, self.W_out) + self.b_out
 
             self.reg_cost = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.get_variable_scope().trainable_variables() if re.search(self.model_name+'\/W', train_var.name) is not None])
-            self.cost = tf.reduce_sum(tf.square(self.logits - self.Y)) + 0.0005 * self.reg_cost
-            # self.cost = tf.reduce_mean(tf.nn.sigmoid_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + 0.0005 * self.reg_cost
-            # self.cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=self.logits, labels=self.Y)) + 0.0005 * self.reg_cost
+            self.cost = 0.5 * tf.reduce_sum(tf.square(self.logits - self.Y)) + 0.0005 * self.reg_cost
 
         self.optimizer = tf.train.AdamOptimizer(learning_rate=0.005).minimize(self.cost)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), tf.arg_max(self.Y, 1)), dtype=tf.float32))
