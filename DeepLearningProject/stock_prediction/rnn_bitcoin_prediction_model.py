@@ -5,6 +5,7 @@ import time
 import re
 import matplotlib.pyplot as plt
 from DeepLearningProject.stock_prediction.lstm_cell import BNLSTMCell
+from DeepLearningProject.stock_prediction.gru_cell import BNGRUCell
 
 class RNN_Model:
     def __init__(self, sess, n_inputs, n_sequences, n_hiddens, n_outputs, hidden_layer_cnt, file_name, model_name):
@@ -30,20 +31,24 @@ class RNN_Model:
             self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
             self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
 
-            self.outputs = tf.reshape(self.outputs, shape=[-1, self.n_sequences * self.n_hiddens])
-            self.fc1 = tf.contrib.layers.fully_connected(self.outputs, 200)
-            self.Y_ = tf.contrib.layers.fully_connected(self.fc1, self.n_outputs, activation_fn=None)
-            # self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
+            # self.outputs = tf.reshape(self.outputs, shape=[-1, self.n_sequences * self.n_hiddens])
+            # self.fc1 = tf.contrib.layers.fully_connected(self.outputs, 200)
+            # self.Y_ = tf.contrib.layers.fully_connected(self.fc1, self.n_outputs, activation_fn=None)
+            self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
             self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
-            self.loss = tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss
+            self.loss = self.huber_loss(0.5 * tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss)
             self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
             self.targets = tf.placeholder(tf.float32, [None, 1])
             self.predictions = tf.placeholder(tf.float32, [None, 1])
             self.rmse = tf.sqrt(tf.reduce_mean(tf.square(self.targets - self.predictions)))
 
+    def huber_loss(self, loss):
+        return tf.where(tf.abs(loss) <= 1.0, 0.5 * tf.square(loss), tf.abs(loss) - 0.5)
+
     def lstm_cell(self, hidden_size):
         cell = BNLSTMCell(hidden_size, self.training)
+        # cell = BNGRUCell(hidden_size, self.training)
         # cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
         if self.training:
             cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
@@ -113,10 +118,13 @@ class CNN_Model:
             self.logits = tf.matmul(self.L2_fc, self.W_out) + self.b_out
 
             self.reg_cost = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.get_variable_scope().trainable_variables() if re.search(self.model_name+'\/W', train_var.name) is not None])
-            self.cost = 0.5 * tf.reduce_sum(tf.square(self.logits - self.Y)) + 0.0005 * self.reg_cost
+            self.cost = self.huber_loss(0.5 * tf.reduce_sum(tf.square(self.logits - self.Y)) + 0.0005 * self.reg_cost)
 
         self.optimizer = tf.train.AdamOptimizer(learning_rate=0.005).minimize(self.cost)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), tf.arg_max(self.Y, 1)), dtype=tf.float32))
+
+    def huber_loss(self, loss):
+        return tf.where(tf.abs(loss) <= 1.0, 0.5 * tf.square(loss), tf.abs(loss) - 0.5)
 
     def BN(self, input, training, name):
         return tf.contrib.layers.batch_norm(input, decay=0.99, scale=True, is_training=training, updates_collections=None, scope=name)
@@ -159,7 +167,7 @@ n_inputs = 7
 n_sequences = 10
 n_hiddens = 7
 n_outputs = 1
-hidden_layer_cnt = 3
+hidden_layer_cnt = 5
 
 file_list = os.listdir('data/')
 rnn_model_list = []
@@ -190,6 +198,7 @@ with tf.Session() as sess:
         print('training start -')
         print('train data -', train_len, ', test data -', test_len)
         for epoch in range(epochs):
+            ############## RNN Training
             train_loss = 0.
             pred_data = np.zeros(train_len, dtype=np.float32)
             estime = time.time()
@@ -205,23 +214,27 @@ with tf.Session() as sess:
             print('RNN Model :', rnn_model.model_name, ', epoch :', epoch+1, ', loss :', train_loss, ' -', eetime-estime)
             train_len, test_len = len(train_Y), len(test_Y)
 
-            train_loss = 0.
-            estime = time.time()
-            for idx in range(0, len(pred_data) - step_size, step_size):
-                if idx + step_size > len(pred_data):
-                    sample_size = (idx + step_size) - len(pred_data) - (((idx + step_size) - len(pred_data)) % cnn_input_size)
-                else:
-                    sample_size = step_size
-                batch_X, batch_Y = np.array(pred_data[idx: idx + sample_size]).reshape([int(sample_size/cnn_input_size), cnn_input_size]).tolist(), \
-                                   np.array(train_Y[n_sequences + idx: n_sequences + idx + sample_size]).reshape([int(sample_size/cnn_input_size), cnn_input_size]).tolist()
-                loss, _ = cnn_model.train(batch_X, batch_Y)
-                train_loss += loss / int(sample_size/cnn_input_size)
-            eetime = time.time()
-            print('CNN Model :', cnn_model.model_name, ', epoch :', epoch + 1, ', loss :', train_loss, ' -', eetime - estime)
+            ############## CNN Training
+            for cnn_epoch in range(epochs):
+                train_loss = 0.
+                estime = time.time()
+                for idx in range(0, len(pred_data) - step_size, step_size):
+                    if idx + step_size > len(pred_data):
+                        sample_size = (idx + step_size) - len(pred_data) - (((idx + step_size) - len(pred_data)) % cnn_input_size)
+                    else:
+                        sample_size = step_size
+                    batch_X, batch_Y = np.array(pred_data[idx: idx + sample_size]).reshape([int(sample_size/cnn_input_size), cnn_input_size]).tolist(), \
+                                       np.array(train_Y[n_sequences + idx: n_sequences + idx + sample_size]).reshape([int(sample_size/cnn_input_size), cnn_input_size]).tolist()
+                    loss, _ = cnn_model.train(batch_X, batch_Y)
+                    predicts = cnn_model.predict(batch_X)
+                    train_loss += loss / sample_size
+                eetime = time.time()
+                print('CNN Model :', cnn_model.model_name, ', epoch :', epoch + 1, ', cnn_epoch :', cnn_epoch + 1, ', loss :', train_loss, ' -', eetime - estime)
         etime = time.time()
         print('training end -', etime-stime, '\n')
 
         print('testing start -')
+        ############## RNN Training
         test_rmse = 0.
         pred_data = np.zeros(test_len, dtype=np.float32)
         for idx in range(0, test_len, batch_size):
@@ -233,6 +246,7 @@ with tf.Session() as sess:
             test_len -= sample_size
         print('RNN Model :', rnn_model.model_name, ', rmse :', test_rmse)
 
+        ############## CNN Training
         cnt = 0
         test_loss = 0.
         accuracy = 0.
@@ -250,10 +264,12 @@ with tf.Session() as sess:
             final_predicts += np.array(predicts).flatten().tolist()
             final_y += np.array(batch_Y).flatten().tolist()
             loss, _ = cnn_model.train(batch_X, batch_Y)
-            test_loss += loss / int(sample_size / cnn_input_size)
+            test_loss += loss / sample_size
         eetime = time.time()
         print('CNN Model :', cnn_model.model_name, ', loss :', test_loss)
         print('testing end -')
+
+        final_predicts = min_max_scaler(final_predicts)
 
         # Plot predictions
         plt.plot(final_y[::60], label='y')
