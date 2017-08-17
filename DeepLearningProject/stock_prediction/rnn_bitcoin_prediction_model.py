@@ -4,8 +4,8 @@ import tensorflow as tf
 import time
 import re
 import matplotlib.pyplot as plt
-from DeepLearningProject.stock_prediction.lstm_cell import BNLSTMCell
-from DeepLearningProject.stock_prediction.gru_cell import BNGRUCell
+from p03_rnn_stock_prediction.lstm_cell import BNLSTMCell
+import math
 
 class RNN_Model:
     def __init__(self, sess, n_inputs, n_sequences, n_hiddens, n_outputs, hidden_layer_cnt, file_name, model_name):
@@ -22,26 +22,27 @@ class RNN_Model:
         self._build_net()
 
     def _build_net(self):
-        with tf.variable_scope(self.model_name):
-            self.learning_rate = 0.001
+        with tf.device('/cpu:0'):
+            with tf.variable_scope(self.model_name):
+                self.learning_rate = 0.001
 
-            self.X = tf.placeholder(tf.float32, [None, self.n_sequences, self.n_inputs])
-            self.Y = tf.placeholder(tf.float32, [None, self.n_outputs])
+                self.X = tf.placeholder(tf.float32, [None, self.n_sequences, self.n_inputs])
+                self.Y = tf.placeholder(tf.float32, [None, self.n_outputs])
 
-            self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
-            self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
+                self.multi_cells = tf.contrib.rnn.MultiRNNCell([self.lstm_cell(self.n_hiddens) for _ in range(self.hidden_layer_cnt)], state_is_tuple=True)
+                self.outputs, _states = tf.nn.dynamic_rnn(self.multi_cells, self.X, dtype=tf.float32)
 
-            # self.outputs = tf.reshape(self.outputs, shape=[-1, self.n_sequences * self.n_hiddens])
-            # self.fc1 = tf.contrib.layers.fully_connected(self.outputs, 200)
-            # self.Y_ = tf.contrib.layers.fully_connected(self.fc1, self.n_outputs, activation_fn=None)
-            self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
-            self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
-            self.loss = self.huber_loss(0.5 * tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss)
-            self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
+                # self.outputs = tf.reshape(self.outputs, shape=[-1, self.n_sequences * self.n_hiddens])
+                # self.fc1 = tf.contrib.layers.fully_connected(self.outputs, 200)
+                # self.Y_ = tf.contrib.layers.fully_connected(self.fc1, self.n_outputs, activation_fn=None)
+                self.Y_ = tf.contrib.layers.fully_connected(self.outputs[:, -1], self.n_outputs, activation_fn=None)
+                self.reg_loss = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.trainable_variables() if re.search('(kernel)|(weights)', train_var.name) is not None])
+                self.loss = self.huber_loss(0.5 * tf.reduce_sum(tf.square(self.Y_ - self.Y)) + self.reg_loss)
+                self.optimizer = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
-            self.targets = tf.placeholder(tf.float32, [None, 1])
-            self.predictions = tf.placeholder(tf.float32, [None, 1])
-            self.rmse = tf.sqrt(tf.reduce_mean(tf.square(self.targets - self.predictions)))
+                self.targets = tf.placeholder(tf.float32, [None, 1])
+                self.predictions = tf.placeholder(tf.float32, [None, 1])
+                self.rmse = tf.sqrt(tf.reduce_mean(tf.square(self.targets - self.predictions)))
 
     def huber_loss(self, loss):
         return tf.where(tf.abs(loss) <= 1.0, 0.5 * tf.square(loss), tf.abs(loss) - 0.5)
@@ -50,8 +51,8 @@ class RNN_Model:
         cell = BNLSTMCell(hidden_size, self.training)
         # cell = BNGRUCell(hidden_size, self.training)
         # cell = tf.contrib.rnn.BasicLSTMCell(hidden_size, state_is_tuple=True)
-        if self.training:
-            cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
+        # if self.training:
+        #     cell = tf.contrib.rnn.DropoutWrapper(cell, input_keep_prob=0.5)
         return cell
 
     def train(self, x_data, y_data):
@@ -98,22 +99,27 @@ class CNN_Model:
                 self.L3_conv = tf.nn.conv2d(input=self.L2_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x62 -> 1x43
                 self.L3_conv = self.BN(input=self.L3_conv, training=self.training, name='L3_conv_BN')
                 self.L3_conv = self.parametric_relu(self.L3_conv, 'R3_conv')
-                self.L3_conv = tf.reshape(self.L3_conv, [-1, 1 * 43 * 300])
+
+                self.W4_conv = tf.get_variable(name='W4_conv', shape=[1, 20, 300, 400], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L4_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W4_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x43 -> 1x24
+                self.L4_conv = self.BN(input=self.L4_conv, training=self.training, name='L4_conv_BN')
+                self.L4_conv = self.parametric_relu(self.L4_conv, 'R4_conv')
+                self.L4_conv = tf.reshape(self.L4_conv, [-1, 1 * 24 * 400])
 
             with tf.name_scope('fc_layer'):
-                self.W1_fc = tf.get_variable(name='W1_fc', shape=[1 * 43 * 300, 500], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[500], name='b1_fc'))
-                self.L1_fc = tf.matmul(self.L3_conv, self.W1_fc) + self.b1_fc
+                self.W1_fc = tf.get_variable(name='W1_fc', shape=[1 * 24 * 400, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b1_fc'))
+                self.L1_fc = tf.matmul(self.L4_conv, self.W1_fc) + self.b1_fc
                 self.L1_fc = self.BN(input=self.L1_fc, training=self.training, name='L1_fc_BN')
                 self.L1_fc = self.parametric_relu(self.L1_fc, 'R1_fc')
 
-                self.W2_fc = tf.get_variable(name='W2_fc', shape=[500, 500], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.b2_fc = tf.Variable(tf.constant(value=0.001, shape=[500], name='b2_fc'))
+                self.W2_fc = tf.get_variable(name='W2_fc', shape=[1000, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.b2_fc = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b2_fc'))
                 self.L2_fc = tf.matmul(self.L1_fc, self.W2_fc) + self.b2_fc
                 self.L2_fc = self.BN(input=self.L2_fc, training=self.training, name='L2_fc_BN')
                 self.L2_fc = self.parametric_relu(self.L2_fc, 'R2_fc')
 
-            self.W_out = tf.get_variable(name='W_out', shape=[500, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            self.W_out = tf.get_variable(name='W_out', shape=[1000, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
             self.b_out = tf.Variable(tf.constant(value=0.001, shape=[100], name='b_out'))
             self.logits = tf.matmul(self.L2_fc, self.W_out) + self.b_out
 
@@ -226,7 +232,6 @@ with tf.Session() as sess:
                     batch_X, batch_Y = np.array(pred_data[idx: idx + sample_size]).reshape([int(sample_size/cnn_input_size), cnn_input_size]).tolist(), \
                                        np.array(train_Y[n_sequences + idx: n_sequences + idx + sample_size]).reshape([int(sample_size/cnn_input_size), cnn_input_size]).tolist()
                     loss, _ = cnn_model.train(batch_X, batch_Y)
-                    predicts = cnn_model.predict(batch_X)
                     train_loss += loss / sample_size
                 eetime = time.time()
                 print('CNN Model :', cnn_model.model_name, ', epoch :', epoch + 1, ', cnn_epoch :', cnn_epoch + 1, ', loss :', train_loss, ' -', eetime - estime)
@@ -234,7 +239,7 @@ with tf.Session() as sess:
         print('training end -', etime-stime, '\n')
 
         print('testing start -')
-        ############## RNN Training
+        ############## RNN Testing
         test_rmse = 0.
         pred_data = np.zeros(test_len, dtype=np.float32)
         for idx in range(0, test_len, batch_size):
@@ -246,7 +251,7 @@ with tf.Session() as sess:
             test_len -= sample_size
         print('RNN Model :', rnn_model.model_name, ', rmse :', test_rmse)
 
-        ############## CNN Training
+        ############## CNN Testing
         cnt = 0
         test_loss = 0.
         accuracy = 0.
@@ -263,13 +268,13 @@ with tf.Session() as sess:
             predicts = cnn_model.predict(batch_X)
             final_predicts += np.array(predicts).flatten().tolist()
             final_y += np.array(batch_Y).flatten().tolist()
-            loss, _ = cnn_model.train(batch_X, batch_Y)
-            test_loss += loss / sample_size
+            # loss, _ = cnn_model.train(batch_X, batch_Y)
+            # test_loss += loss / sample_size
         eetime = time.time()
-        print('CNN Model :', cnn_model.model_name, ', loss :', test_loss)
+        print('CNN Model :', cnn_model.model_name, ', loss :', np.sum(np.absolute(np.array(final_y) - np.array(final_predicts))))
         print('testing end -')
 
-        final_predicts = min_max_scaler(final_predicts)
+        # final_predicts = min_max_scaler(final_predicts)
 
         # Plot predictions
         plt.plot(final_y[::60], label='y')

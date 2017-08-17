@@ -34,7 +34,7 @@ class BNGRUCell(RNNCell):
             bn_sh = bn_rnn(sh, 'sh', self.training)
 
             # hidden = bn_xh + bn_sh + xs_bias
-            hidden = bn_xh + bn_sh
+            hidden = bn_xh + bn_sh  # 각 FC 계층에 대한 BN 적용
             # hidden = bn_xh + sh
 
             ixh = tf.matmul(x, W_ixh)
