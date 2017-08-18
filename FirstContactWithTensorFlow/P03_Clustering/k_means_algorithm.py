@@ -15,19 +15,22 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-num_points = 2000
-vectors_set = []
+# num_points = 2000
+# vectors_set = []
 
-for i in range(num_points):
-    if np.random.random() > 0.5:
-        vectors_set.append([np.random.normal(0.0, 0.9), np.random.normal(0.0, 0.9)])
-    else:
-        vectors_set.append([np.random.normal(3.0, 0.5), np.random.normal(1.0, 0.5)])
+# for i in range(num_points):
+#     if np.random.random() > 0.5:
+#         vectors_set.append([np.random.normal(0.0, 0.9), np.random.normal(0.0, 0.9)])
+#     else:
+#         vectors_set.append([np.random.normal(3.0, 0.5), np.random.normal(1.0, 0.5)])
 
+vectors_set = np.loadtxt('data/academy.csv', delimiter=',')
+vectors_set = vectors_set[:, [1,2]]
 # df = pd.DataFrame({'x': [v[0] for v in vectors_set],
 #                    'y': [v[1] for v in vectors_set]})
 x = [v[0] for v in vectors_set]
 y = [v[1] for v in vectors_set]
+
 # plt.plot(x, y, 'ro')
 # plt.show()
 
@@ -75,7 +78,7 @@ init_op = tf.global_variables_initializer()
 sess = tf.Session()
 sess.run(init_op)
 
-for step in range(100):
+for step in range(500):
     _, centroid_values, assignment_values = sess.run([update_centroids, centroids, assignments])
 
 colors = ["g.", "r.", "c.", "y."]

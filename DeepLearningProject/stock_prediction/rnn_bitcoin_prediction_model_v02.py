@@ -75,38 +75,47 @@ class CNN_Model:
     def _build_net(self):
         with tf.variable_scope(self.model_name):
             with tf.name_scope('input_layer'):
+                self.dropout_rate = 0.5
                 self.learning_rate = 0.001
                 self.training = tf.placeholder(tf.bool, name='training')
                 self.regularizer = tf.contrib.layers.l2_regularizer(0.0005)
 
-                self.X = tf.placeholder(dtype=tf.float32, shape=[None, 100])
-                X_data = tf.reshape(self.X, [-1, 1, 100, 1])
-                self.Y = tf.placeholder(dtype=tf.float32, shape=[None, 100])
+                self.X = tf.placeholder(dtype=tf.float32, shape=[None, 400])
+                X_data = tf.reshape(self.X, [-1, 1, 400, 1])
+                self.Y = tf.placeholder(dtype=tf.float32, shape=[None, 400])
 
             with tf.name_scope('conv_layer'):
-                self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 20, 1, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x100 -> 1x81
+                self.W1_conv = tf.get_variable(name='W1_conv', shape=[1, 21, 1, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L1_conv = tf.nn.conv2d(input=X_data, filter=self.W1_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x400 -> 1x380
                 self.L1_conv = self.BN(input=self.L1_conv, training=self.training, name='L1_conv_BN')
                 self.L1_conv = self.parametric_relu(self.L1_conv, 'R1_conv')
+                self.L1_conv = tf.nn.max_pool(value=self.L1_conv, ksize=[1, 1, 2, 1], strides=[1, 1, 2, 1], padding='SAME')  # 1x380 -> 1x190
+                self.L1_conv = tf.layers.dropout(inputs=self.L1_conv, rate=self.dropout_rate, training=self.training)
 
-                self.W2_conv = tf.get_variable(name='W2_conv', shape=[1, 20, 100, 200], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L2_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W2_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x81 -> 1x62
+                self.W2_conv = tf.get_variable(name='W2_conv', shape=[1, 21, 100, 200], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L2_conv = tf.nn.conv2d(input=self.L1_conv, filter=self.W2_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x190 -> 1x170
                 self.L2_conv = self.BN(input=self.L2_conv, training=self.training, name='L2_conv_BN')
                 self.L2_conv = self.parametric_relu(self.L2_conv, 'R2_conv')
+                self.L2_conv = tf.nn.max_pool(value=self.L2_conv, ksize=[1, 1, 2, 1], strides=[1, 1, 2, 1], padding='SAME')  # 1x170 -> 1x85
+                self.L2_conv = tf.layers.dropout(inputs=self.L2_conv, rate=self.dropout_rate, training=self.training)
 
                 self.W3_conv = tf.get_variable(name='W3_conv', shape=[1, 20, 200, 300], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L3_conv = tf.nn.conv2d(input=self.L2_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x62 -> 1x43
+                self.L3_conv = tf.nn.conv2d(input=self.L2_conv, filter=self.W3_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x85 -> 1x66
                 self.L3_conv = self.BN(input=self.L3_conv, training=self.training, name='L3_conv_BN')
                 self.L3_conv = self.parametric_relu(self.L3_conv, 'R3_conv')
+                self.L3_conv = tf.nn.max_pool(value=self.L3_conv, ksize=[1, 1, 2, 1], strides=[1, 1, 2, 1], padding='SAME')  # 1x66 -> 1x33
+                self.L3_conv = tf.layers.dropout(inputs=self.L3_conv, rate=self.dropout_rate, training=self.training)
 
-                self.W4_conv = tf.get_variable(name='W4_conv', shape=[1, 20, 300, 400], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-                self.L4_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W4_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x43 -> 1x24
+                self.W4_conv = tf.get_variable(name='W4_conv', shape=[1, 10, 300, 400], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.L4_conv = tf.nn.conv2d(input=self.L3_conv, filter=self.W4_conv, strides=[1, 1, 1, 1], padding='VALID')  # 1x33 -> 1x24
                 self.L4_conv = self.BN(input=self.L4_conv, training=self.training, name='L4_conv_BN')
                 self.L4_conv = self.parametric_relu(self.L4_conv, 'R4_conv')
-                self.L4_conv = tf.reshape(self.L4_conv, [-1, 1 * 24 * 400])
+                self.L4_conv = tf.nn.max_pool(value=self.L4_conv, ksize=[1, 1, 2, 1], strides=[1, 1, 2, 1], padding='SAME')  # 1x24 -> 1x12
+                self.L4_conv = tf.reshape(self.L4_conv, [-1, 1 * 12 * 400])
+                self.L4_conv = tf.layers.dropout(inputs=self.L4_conv, rate=self.dropout_rate, training=self.training)
 
             with tf.name_scope('fc_layer'):
-                self.W1_fc = tf.get_variable(name='W1_fc', shape=[1 * 24 * 400, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+                self.W1_fc = tf.get_variable(name='W1_fc', shape=[1 * 12 * 400, 1000], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.b1_fc = tf.Variable(tf.constant(value=0.001, shape=[1000], name='b1_fc'))
                 self.L1_fc = tf.matmul(self.L4_conv, self.W1_fc) + self.b1_fc
                 self.L1_fc = self.BN(input=self.L1_fc, training=self.training, name='L1_fc_BN')
@@ -118,8 +127,8 @@ class CNN_Model:
                 self.L2_fc = self.BN(input=self.L2_fc, training=self.training, name='L2_fc_BN')
                 self.L2_fc = self.parametric_relu(self.L2_fc, 'R2_fc')
 
-            self.W_out = tf.get_variable(name='W_out', shape=[1000, 100], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
-            self.b_out = tf.Variable(tf.constant(value=0.001, shape=[100], name='b_out'))
+            self.W_out = tf.get_variable(name='W_out', shape=[1000, 400], dtype=tf.float32, initializer=tf.contrib.layers.variance_scaling_initializer())
+            self.b_out = tf.Variable(tf.constant(value=0.001, shape=[400], name='b_out'))
             self.logits = tf.matmul(self.L2_fc, self.W_out) + self.b_out
 
             self.reg_cost = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.get_variable_scope().trainable_variables() if re.search(self.model_name+'\/W', train_var.name) is not None])
@@ -169,7 +178,7 @@ def read_data(file_name):
     return dataX, dataY
 
 n_inputs = 7
-n_sequences = 10
+n_sequences = 20
 n_hiddens = 7
 n_outputs = 1
 hidden_layer_cnt = 5
@@ -177,7 +186,7 @@ hidden_layer_cnt = 5
 file_list = os.listdir('data/')
 rnn_model_list = []
 cnn_model_list = []
-cnn_input_size = 10 * 10
+cnn_input_size = 20 * 20
 
 batch_size = 100
 epochs = 20
@@ -195,8 +204,8 @@ with tf.Session() as sess:
 
     for rnn_model, cnn_model in zip(rnn_model_list, cnn_model_list):
         total_X, total_Y = read_data(rnn_model.file_name)  # 모델별 파일 로딩
-        train_X, train_Y = total_X[:int(len(total_Y)*0.7)], total_Y[:int(len(total_Y)*0.7)]  # train 데이터
-        test_X, test_Y = total_X[int(len(total_Y)*0.7):], total_Y[int(len(total_Y)*0.7):]  # test 데이터
+        train_X, train_Y = total_X[:int(len(total_Y)*0.8)], total_Y[:int(len(total_Y)*0.8)]  # train 데이터
+        test_X, test_Y = total_X[int(len(total_Y)*0.8):], total_Y[int(len(total_Y)*0.8):]  # test 데이터
         train_len, test_len = len(train_Y), len(test_Y)
 
         stime = time.time()
