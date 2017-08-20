@@ -207,14 +207,14 @@ for epoch in range(training_epochs):
     avg_cost_list = np.zeros(len(models))
     total_batch = int(mnist.train.num_examples / batch_size)
 
-    # train_writer = tf.summary.FileWriter('./logs/train', sess.graph)
+    train_writer = tf.summary.FileWriter('./logs/train', sess.graph)
     for i in range(total_batch):
         batch_xs, batch_ys = mnist.train.next_batch(batch_size)
         # 각각의 모델 훈련
         for idx, m in enumerate(models):
             s, c, _ = m.train(batch_xs, batch_ys)
             avg_cost_list[idx] += c / total_batch
-            # train_writer.add_summary(s)
+            train_writer.add_summary(s)
     print('Epoch: ', '%04d' % (epoch + 1), 'cost =', avg_cost_list)
 print('Learning Finished!')
 

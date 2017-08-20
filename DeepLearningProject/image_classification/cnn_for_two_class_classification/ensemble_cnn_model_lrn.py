@@ -305,8 +305,7 @@ class Model:
             axis = -1
         num_channels = shape[axis]
         if num_channels % num_units:
-            raise ValueError(
-                'number of features({}) is not a multiple of num_units({})'.format(num_channels, num_units))
+            raise ValueError('number of features({}) is not a multiple of num_units({})'.format(num_channels, num_units))
         shape[axis] = num_units  # m
         shape += [num_channels // num_units]  # k
         outputs = tf.reduce_max(tf.reshape(inputs, shape), -1, keep_dims=False)

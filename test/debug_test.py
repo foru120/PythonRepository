@@ -1,3 +1,4 @@
-a = [[[1,2,3], [4,5,6]]]
+data = ['abc', 'dfg', 'gjkdsl']
 
-print(len(a))
+if 'ab' in data:
+    print('dfs')
