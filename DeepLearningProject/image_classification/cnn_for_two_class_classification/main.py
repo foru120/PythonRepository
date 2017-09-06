@@ -1,4 +1,4 @@
-from p02_cnn_image_classification.ensemble_cnn_model_bn import Model
+from DeepLearningProject.image_classification.cnn_for_two_class_classification.ensemble_cnn_model_bn import Model
 import tensorflow as tf
 import numpy as np
 import time
