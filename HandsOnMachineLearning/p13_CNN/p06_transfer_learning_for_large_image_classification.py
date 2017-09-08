@@ -213,3 +213,64 @@ with tf.name_scope('eval'):
 with tf.name_scope('init_and_save'):
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
+
+# 9.d. Exercise: Split your dataset into a training set and a test set. Train the model on the training set and evaluate it on the test set.
+# First, we will want to represent the classes as ints rather than strings.
+flower_class_ids = {flower_class: index for index, flower_class in enumerate(flower_classes)}
+
+# It will be easier to shuffle the dataset if we represent it as a list of filepath/class ids pairs.
+flower_paths_and_classes = []
+for flower_class, paths in image_paths.items():
+    for path in paths:
+        flower_paths_and_classes.append((path, flower_class_ids[flower_class]))
+
+# Next, lets shuffle the dataset and split it into the training set and the test set.
+test_ratio = 0.2
+train_size = int(len(flower_paths_and_classes) * (1-test_ratio))
+
+np.random.shuffle(flower_paths_and_classes)  # data shuffle
+
+flower_paths_and_classes_train = flower_paths_and_classes[:train_size]  # train data
+flower_paths_and_classes_test = flower_paths_and_classes[train_size:]  # test data
+
+# Next, we will also need a function to preprocess a set of images.
+# This function will be useful to preprocess the test set, and also to create batches during training.
+# For simplicity, we will use the NumPy/SciPy implementation.
+from random import sample
+
+def prepare_batch(flower_paths_and_classes, batch_size):
+    batch_paths_and_classes = sample(flower_paths_and_classes, batch_size)  # mini batch 형식으로 랜덤으로 batch size 만큼 리스트로 출력
+    images = [mpimg.imread(path)[ :, :, :channels] for path, labels in batch_paths_and_classes]
+    prepared_images = [prepare_image_with_numpy(image) for image in images]
+    X_batch = np.stack(prepared_images)
+    y_batch = np.array([labels for path, labels in batch_paths_and_classes], dtype=np.int32)
+    return X_batch, y_batch
+
+X_batch, y_batch = prepare_batch(flower_paths_and_classes_train, batch_size=4)  # train 시, batch size = 4 로 설정
+X_test, y_test = prepare_batch(flower_paths_and_classes_test, batch_size=len(flower_paths_and_classes_test))  # test 시, 전체 데이터에 대해 수행
+
+n_epochs = 10
+batch_size = 50
+n_iterations_per_epoch = len(flower_paths_and_classes_train) // batch_size
+INCEPTION_PATH = os.path.join('datasets', 'inception')
+INCEPTION_V3_CHECKPOINT_PATH = os.path.join(INCEPTION_PATH, 'inception_v3.ckpt')
+
+with tf.Session() as sess:
+    init.run()
+    inception_saver.restore(sess, INCEPTION_V3_CHECKPOINT_PATH)
+
+    for epoch in range(n_epochs):
+        print('Epoch', epoch, end='')
+        for iteration in range(n_iterations_per_epoch):
+            print('.', end='')
+            X_batch, y_batch = prepare_batch(flower_paths_and_classes_train, batch_size)
+            sess.run(training_op, feed_dict={X: X_batch, y: y_batch, training: True})
+
+        acc_train = accuracy.eval(feed_dict={X: X_batch, y: y_batch})
+        print('  Train accuracy:', acc_train)
+
+        save_path = saver.save(sess, 'logs/my_flowers_model')
+
+    print('Computing final accuracy on the test set (this will take a while)...')
+    acc_test = accuracy.eval(feed_dict={X: X_test, y: y_test})
+    print('Test accuracy:', acc_test)
