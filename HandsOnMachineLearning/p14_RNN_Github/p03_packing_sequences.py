@@ -12,7 +12,7 @@ X_seqs = tf.unstack(tf.transpose(X, perm=[1, 0, 2]))  # [tensor(n_batch, n_input
 basic_cell = tf.contrib.rnn.BasicRNNCell(num_units=n_neurons)
 output_seqs, states = tf.contrib.rnn.static_rnn(basic_cell, X_seqs, dtype=tf.float32)
 
-output = tf.transpose(output_seqs, perm=[1, 0, 2])
+output = tf.transpose(tf.stack(output_seqs), perm=[1, 0, 2])
 
 init = tf.global_variables_initializer()
 

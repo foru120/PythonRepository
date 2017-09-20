@@ -6,7 +6,6 @@ import re
 import matplotlib.pyplot as plt
 import copy as cp
 
-
 class NN_Model:
     def __init__(self, sess, model_name, n_sequences, n_inputs):
         self.sess = sess
@@ -56,7 +55,6 @@ class NN_Model:
                 self.L2_fc = self.BN(input=self.L2_fc, training=self.training, name='L2_fc_BN')
                 self.L2_fc = self.parametric_relu(self.L2_fc, 'L2_fc')
 
-
                 self.W3_fc = tf.get_variable(name='W3_fc', shape=[448, 448], dtype=tf.float32,
                                              initializer=tf.contrib.layers.variance_scaling_initializer())
                 self.b3_fc = tf.Variable(tf.constant(value=0.001, shape=[448], name='b3_fc'))
@@ -90,7 +88,6 @@ class NN_Model:
 
         self.optimizer = tf.train.AdamOptimizer(learning_rate=0.005).minimize(self.cost)
 
-
     def BN(self, input, training, name):
         return tf.contrib.layers.batch_norm(input, decay=0.99, scale=True, is_training=training,
                                             updates_collections=None, scope=name)
@@ -104,7 +101,6 @@ class NN_Model:
     def predict(self, x_test):
         return self.sess.run(self.logits, feed_dict={self.X: x_test, self.training: False})
 
-
     def train(self, x_data, y_data):
         return self.sess.run([self.cost, self.optimizer],
                              feed_dict={self.X: x_data, self.Y: y_data, self.training: True})
@@ -113,17 +109,14 @@ class NN_Model:
         self.loss = tf.reduce_mean(tf.square(predicts - self.Y))
         return self.sess.run(self.loss, feed_dict={self.Y: y_test, self.training: False})
 
-
 n_inputs = 7
 n_sequences = 256
 n_hiddens = 7
 n_outputs = 1
 hidden_layer_cnt = 5
 
-
 def min_max_scaler(data):
     return (data - np.min(data, axis=0)) / (np.max(data, axis=0) - np.min(data, axis=0) + 1e-5)
-
 
 def read_data(file_name, n_sequences):
     data = np.loadtxt('C:\\bitcoin/' + file_name, delimiter=',', skiprows=1)
@@ -139,7 +132,6 @@ def read_data(file_name, n_sequences):
         dataX.append(_x)
         dataY.append(_y)
     return dataX, dataY
-
 
 file_list = os.listdir('C:\\bitcoin/')
 model_list = []

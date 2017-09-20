@@ -231,8 +231,6 @@ class Model:
 
             tot_layers = tf.concat([L1x1, L5x5_sub3, L3x3_sub2, L_pool_sub1], axis=3)  # Concat in the 4th dim to stack
             self.inception_reg_losses[0] = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.get_variable_scope().trainable_variables()])
-            # self.inception_reg_losses[0] = self.regularizer(W1x1) + self.regularizer(W5x5_sub1) + self.regularizer(W5x5_sub2) + \
-            #                                self.regularizer(W5x5_sub3) + self.regularizer(W3x3_sub1) + self.regularizer(W3x3_sub2) + self.regularizer(W_pool_sub1)
         return tot_layers
 
     def inception_B(self, x, n, output, name):
@@ -297,8 +295,6 @@ class Model:
 
             tot_layers = tf.concat([L1x1, L5x5_sub5, L3x3_sub3, L_pool_sub1], axis=3)  # Concat in the 4th dim to stack
             self.inception_reg_losses[1] = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.get_variable_scope().trainable_variables()])
-            # self.inception_reg_losses[1] = self.regularizer(W1x1) + self.regularizer(W5x5_sub1) + self.regularizer(W5x5_sub2) + self.regularizer(W5x5_sub3) + self.regularizer(W5x5_sub4) + self.regularizer(W5x5_sub5) + \
-            #                                self.regularizer(W3x3_sub1) + self.regularizer(W3x3_sub2) + self.regularizer(W3x3_sub3) + self.regularizer(W_pool_sub1)
         return tot_layers
 
     def inception_C(self, x, n, output, name):
@@ -358,6 +354,4 @@ class Model:
 
             tot_layers = tf.concat([L1x1, L5x5_sub3, L5x5_sub4, L3x3_sub2, L3x3_sub3, L_pool_sub1], axis=3)  # Concat in the 4th dim to stack
             self.inception_reg_losses[2] = tf.reduce_sum([self.regularizer(train_var) for train_var in tf.get_variable_scope().trainable_variables()])
-            # self.inception_reg_losses[2] = self.regularizer(W1x1) + self.regularizer(W5x5_sub1) + self.regularizer(W5x5_sub2) + self.regularizer(W5x5_sub3) + self.regularizer(W5x5_sub4) + \
-            #                                self.regularizer(W3x3_sub1) + self.regularizer(W3x3_sub2) + self.regularizer(W3x3_sub3) + self.regularizer(W_pool_sub1)
         return tot_layers
