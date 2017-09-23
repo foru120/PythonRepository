@@ -87,7 +87,7 @@ with tf.Session() as sess:
 
     best_loss_val = np.infty
     check_since_last_progress = 0  # early stopping 조건을 만족하지 않은 횟수
-    max_checks_without_progress = 20  # 특정 횟수 만큼 조건이 만족하지 않은 경우
+    max_checks_without_progress = 100  # 특정 횟수 만큼 조건이 만족하지 않은 경우
     best_model_params = None  # 가장 좋은 모델의 parameter 값을 저장하는 변수
 
     print('Learning Started!')

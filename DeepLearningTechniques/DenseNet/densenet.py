@@ -27,13 +27,15 @@ class Model():
                 '''bottleneck layer (DenseNet-B)'''
                 c = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
                 # c = self.parametric_relu(c, 'bottleneck')
-                c = tf.nn.elu(c, 'bottleneck')
+                # c = tf.nn.elu(c, 'bottleneck')
+                c = tf.nn.relu(c, 'bottleneck')
                 c = conv(c, 1, 4 * self.growthRate, 1)  # 4k, output
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
                 '''basic dense layer (Factorization)'''
                 c = batch_norm(inputs=c, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
-                c = tf.nn.elu(c, 'basic_1')
+                # c = tf.nn.elu(c, 'basic_1')
+                c = tf.nn.relu(c, 'basic_1')
                 # c = self.parametric_relu(c, 'basic_1')
                 c = conv(c, 3, self.growthRate, 1)  # k, output
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
@@ -53,7 +55,8 @@ class Model():
                 '''compression transition layer (DenseNet-C)'''
                 l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
                 # l = self.parametric_relu(l, 'transition')
-                l = tf.nn.elu(l, 'transition')
+                # l = tf.nn.elu(l, 'transition')
+                l = tf.nn.relu(l, 'transition')
                 l = conv(l, 3, int(in_channel * self.compression_factor), 1)
                 l = avg_pool2d(inputs=l, kernel_size=[2, 2], stride=2, padding='SAME')
                 l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
@@ -79,7 +82,8 @@ class Model():
 
             l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
             # l = self.parametric_relu(l, 'output')
-            l = tf.nn.elu(l, 'output')
+            # l = tf.nn.elu(l, 'output')
+            l = tf.nn.relu(l, 'output')
             l = avg_pool2d(inputs=l, kernel_size=[8, 8], stride=1, padding='VALID')
             l = tf.reshape(l, shape=[-1, 1 * 1 * 256])
             l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
