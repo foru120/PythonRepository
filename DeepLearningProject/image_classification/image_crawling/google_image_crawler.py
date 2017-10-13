@@ -1,6 +1,6 @@
-from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
-from bs4 import BeautifulSoup
+# from selenium import webdriver
+# from selenium.webdriver.common.keys import Keys
+# from bs4 import BeautifulSoup
 import time
 import urllib.request
 from PIL import Image
@@ -9,12 +9,14 @@ import re
 import matplotlib.image as mimage
 import math
 import numpy as np
-
+from selenium import webdriver
+from bs4 import BeautifulSoup
+from selenium.webdriver.common.keys import Keys
 
 class GoogleImageCrawler:
-    __CHROME_DRIVER_PATH = 'D:\\software\\'
-    __IMAGE_PATH = ['D:\\00.NeuralNetwork\\dog_images\\', 'D:\\00.NeuralNetwork\\cat_images\\']
-    __DATA_PATH = 'D:\\00.NeuralNetwork\\'
+    __CHROME_DRIVER_PATH = 'D:\\03_utils\\'
+    __IMAGE_PATH = ['D:\\01_study\\99.DeepLearning\\03.Dataset\\dcgan\\Gogh\\']
+    __DATA_PATH = ['D:\\01_study\\99.DeepLearning\\03.Dataset\\dcgan\\Gogh\\']
 
     __SEARCH_DOG = ['퍼그', '시베리안 허스키', '아메리칸 핏불 테리어', '래브라도 리트리버', '비글', '로트바일러', '시추', '도베르만 핀셔', '저먼 셰퍼드', '복서',
                     '차우차우', '푸들', '포메라니안', '불도그', '요크셔 테리어', '잉글리쉬 마스티프',
@@ -29,7 +31,16 @@ class GoogleImageCrawler:
                     '히말라얀', '이집션 마우', '봄베이', '쵸시', '싱가푸라', '맹크스', '소말리 고양이',
                     '오시캣', '코니시 렉스', '라가머핀', '발리니즈', '반고양이', '톤키니즈', '셀커크 렉스', '코랏', '유러피안 숏 헤어', '스노우슈', '티파니',
                     '아메리칸 밥테일', '타이캣', '재패니즈 밥테일', '아메리칸 와이어헤어', '터키시 반', '자바니즈']
-    __SEARCH_KEYWORD = [__SEARCH_DOG, __SEARCH_CAT]
+    __SEARCH_IMAGE = ['고흐 별이 빛나는 밤', '고흐 붓꽃', '고흐 감자 먹는 사람들', '고흐 아를의 침실', '고흐 밤의 카페 테라스', '고흐 삼나무가 있는 밀밭',
+                      '고흐 노란집', '고흐 아몬드 꽃', '고흐 까마귀가 나는 밀밭', '고흐 아를의 붉은 포도밭', '고흐 슈케베닌겐 바다 전경', '고흐 자화상',
+                      '고흐 가셰 박사의 초상', '고흐 밤의 카페', '고흐 론강의 별이 빛나는 밤에', '고흐 귀에 붕대를 감은 자화상', '고흐 붉은 장미가 있는 꽃병',
+                      '고흐 나무뿌리', '고흐 자포네제리', '고흐 탕기 영감의 초상', '고흐 오베르의 교회', '고흐 양비귀꽃', '고흐 영원의 문', '고흐 별이 빛나는 밤의 사이프러스',
+                      '고흐 담배 피는 해골', '고흐 몽마르주의 일몰', '고흐 오베르의 집들', '고흐 아를의 만발한 포도나무 풍경', '고흐 고호의 어머니 초상화',
+                      '고흐 도비니의 정원', '고흐 양귀비꽃', '고흐 오베르의 농촌풍경', '고흐 슬픔', '고흐 라 무스메', '고흐 자장가(룰랭부인)', '고흐 프로방스의 농가',
+                      '고흐 네덜란드의 꽃밭', '고흐 레잘리스캉', '고흐 사이프러스 나무가 있는 녹색 밀밭', '고흐 분홍 장미', '고흐 에텐 정원의 추억',
+                      '고흐 탬버린의 여인', '고흐 게 두 마리', '고흐 15송이 해바라기가 있는 꽃병', '고흐 닥터 펠렉스 레이 초상화', '고흐 가죽 나막신',
+                      '고흐 씨 뿌리는 사람', '고흐 오후 : 휴식(밀레 모작)']
+    __SEARCH_KEYWORD = [__SEARCH_IMAGE]
 
     def __init__(self):
         self.__image_urls = []  # 이미지를 다운받을 URL 주소.
@@ -38,7 +49,7 @@ class GoogleImageCrawler:
         self.__keyword_cnt = len(GoogleImageCrawler.__SEARCH_KEYWORD)  # 검색 종류 개수.
         self._google_image_url = 'https://www.google.com/imghp?hl=ko'
         self.__rgb_cnt = 0
-        # self._set_chrome_driver()
+        self._set_chrome_driver()
 
     def _set_chrome_driver(self):
         '''
@@ -107,30 +118,30 @@ class GoogleImageCrawler:
             기존 원본 이미지를 특정 사이즈 형식으로 Thumbnail 을 수행하는 함수.
             이미지가 저장된 폴더로부터 이미지를 로드 후 썸네일 이미지 생성.
         '''
-        size = (128, 128)
+        size = (64, 64)
         for index in range(self.__keyword_cnt):
             for file in [filename for filename in os.listdir(GoogleImageCrawler.__IMAGE_PATH[index]) if
-                         re.search('[0-9]+\.(jpg|jpeg|png)', filename) is not None]:
+                         re.match('[0-9]+\.(jpg|jpeg|png)', filename) is not None]:
                 try:
                     print(file)
                     filename, ext = os.path.splitext(file)
 
-                    new_img = Image.new("RGB", (128, 128), "white")
+                    new_img = Image.new("RGB", (64, 64), "white")
                     im = Image.open(GoogleImageCrawler.__IMAGE_PATH[index] + str(file))
                     im.thumbnail(size, Image.ANTIALIAS)
-                    load_img = im.load()
+                    load_img = im.load()  # (199, 129, 49)
                     load_newimg = new_img.load()
-                    i_offset = (128 - im.size[0]) / 2
-                    j_offset = (128 - im.size[1]) / 2
+                    i_offset = (64 - im.size[0]) / 2
+                    j_offset = (64 - im.size[1]) / 2
 
                     for i in range(0, im.size[0]):
                         for j in range(0, im.size[1]):
                             load_newimg[i + i_offset, j + j_offset] = load_img[i, j]
 
                     if ext.lower() in ('.jpeg', '.jpg'):
-                        new_img.save(GoogleImageCrawler.__IMAGE_PATH[index] + str(filename) + '_128x128.jpeg')
+                        new_img.save(GoogleImageCrawler.__DATA_PATH[index] + str(filename) + '_64x64.jpeg')
                     elif ext.lower() == '.png':
-                        new_img.save(GoogleImageCrawler.__IMAGE_PATH[index] + str(filename) + '_128x128.png')
+                        new_img.save(GoogleImageCrawler.__DATA_PATH[index] + str(filename) + '_64x64.png')
                 except Exception as e:
                     print(str(file), e)
 
@@ -179,13 +190,13 @@ class GoogleImageCrawler:
         for data in self.__image_data:
             x_shape, y_shape = data[0].shape
             temp_data = ''
-            for x in range(1, x_shape - 1):
-                for y in range(1, y_shape - 1):
-                    if x == 1 and y == 1:
+            for x in range(0, x_shape - 1):
+                for y in range(0, y_shape - 1):
+                    if x == 0 and y == 0:
                         temp_data += str(data[0][x][y])
                     else:
                         temp_data += ',' + str(data[0][x][y])
-            temp_data += ',' + str(data[1])
+            # temp_data += ',' + str(data[1])  # label
 
             with open(GoogleImageCrawler.__DATA_PATH + 'image_data_' + str(
                     math.ceil(self.__rgb_cnt / 1000)) + '_' + str(index) + '.csv', 'a', encoding='utf-8') as f:
@@ -196,27 +207,27 @@ class GoogleImageCrawler:
         '''
             이미지 크롤링에 필요한 함수들을 수행하는 함수.
         '''
-        # for index in range(0, self.__keyword_cnt):
-        #     self.__curr_index = index
-        #     for keyword in GoogleImageCrawler.__SEARCH_KEYWORD[self.__curr_index]:
-        #         print('crawling start.')
-        #         self._get_image_crawling(keyword)
-        #         print('crawling complete.')
-        #         print('image count : ' + str(len(self.__image_urls)))
-        #
-        #         print('image downloading.')
-        #         self._image_downloads()
-        #         print('image downloading complete.')
-        #
-        #         self.__image_urls.clear()
+        for index in range(0, self.__keyword_cnt):
+            self.__curr_index = index
+            for keyword in GoogleImageCrawler.__SEARCH_KEYWORD[self.__curr_index]:
+                print('crawling start.')
+                self._get_image_crawling(keyword)
+                print('crawling complete.')
+                print('image count : ' + str(len(self.__image_urls)))
+
+                print('image downloading.')
+                self._image_downloads()
+                print('image downloading complete.')
+
+                self.__image_urls.clear()
 
         # print('image to thumbnail start.')
         # self._image_to_thumbnail()
         # print('image to thumbnail end.')
 
-        print('rgb to gray start.')
-        self._extract_rgb_from_image()
-        print('rgb to gray end.')
+        # print('rgb to gray start.')
+        # self._extract_rgb_from_image()
+        # print('rgb to gray end.')
 
         # self.driver.quit()
 
