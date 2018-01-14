@@ -106,12 +106,12 @@ class GoogleImageCrawler:
                 before_img_cnt = after_img_cnt
                 time.sleep(3)
 
-    def _image_downloads(self):
+    def _image_downloads(self, keyword):
         '''
             수집된 이미지 경로를 가지고 직접 이미지를 다운로드하는 함수.
         '''
         for name, url in self.__image_urls:
-            urllib.request.urlretrieve(url, GoogleImageCrawler.__IMAGE_PATH[self.__curr_index] + str(name) + '.jpg')
+            urllib.request.urlretrieve(url, GoogleImageCrawler.__IMAGE_PATH[self.__curr_index] + keyword + '_' + str(name) + '.jpg')
 
     def _image_to_thumbnail(self):
         '''
@@ -216,7 +216,7 @@ class GoogleImageCrawler:
                 print('image count : ' + str(len(self.__image_urls)))
 
                 print('image downloading.')
-                self._image_downloads()
+                self._image_downloads(keyword)
                 print('image downloading complete.')
 
                 self.__image_urls.clear()

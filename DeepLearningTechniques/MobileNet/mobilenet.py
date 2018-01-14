@@ -25,8 +25,10 @@ class Model:
             self.training = tf.placeholder(dtype=tf.bool, shape=None, name='training')
             self.dropout_rate = tf.placeholder(dtype=tf.float32, shape=None, name='dropout_rate')
             self.weight_initializer = tf.contrib.layers.variance_scaling_initializer()
-            self.depthwise_regularizer = tf.contrib.layers.l2_regularizer(1e-8)
-            self.etc_regularizer = tf.contrib.layers.l2_regularizer(1e-3)
+            # self.depthwise_regularizer = tf.contrib.layers.l2_regularizer(1e-8)
+            # self.etc_regularizer = tf.contrib.layers.l2_regularizer(1e-3)
+            self.depthwise_regularizer = None
+            self.etc_regularizer = None
 
         with tf.variable_scope('mobile_net'):
             with tf.contrib.framework.arg_scope(
@@ -41,30 +43,30 @@ class Model:
                         updates_collections=None,
                         scale=True,
                         is_training=self.training):
-                    layer = tf.contrib.layers.conv2d(inputs=self.X, num_outputs=40, kernel_size=3, stride=1, weights_regularizer=self.etc_regularizer, scope='conv_1')
+                    layer = tf.contrib.layers.conv2d(inputs=self.X, num_outputs=20, kernel_size=3, stride=1, weights_regularizer=self.etc_regularizer, scope='conv_1')
                     layer = tf.contrib.layers.batch_norm(inputs=layer, scope='conv_1/batch_norm')
-                    layer = self._depthwise_separable_conv(layer, 80, downsample=True, scope='conv_ds_2')
-                    layer = self._depthwise_separable_conv(layer, 80, scope='conv_ds_3')
+                    layer = self._depthwise_separable_conv(layer, 40, downsample=True, scope='conv_ds_2')
+                    layer = self._depthwise_separable_conv(layer, 40, scope='conv_ds_3')
                     # layer = self._depthwise_separable_conv(layer, 80, downsample=True, scope='conv_ds_4')
                     # layer = self._depthwise_separable_conv(layer, 40, scope='conv_ds_4')
-                    layer = self._depthwise_separable_conv(layer, 160, downsample=True, scope='conv_ds_4')
-                    layer = self._depthwise_separable_conv(layer, 160, scope='conv_ds_5')
+                    layer = self._depthwise_separable_conv(layer, 80, downsample=True, scope='conv_ds_4')
+                    layer = self._depthwise_separable_conv(layer, 80, scope='conv_ds_5')
                     for idx in range(6, 8):
-                        layer = self._depthwise_separable_conv(layer, 320, scope='conv_ds_' + str(idx))
-                    layer = self._depthwise_separable_conv(layer, 640, scope='conv_ds_8')
+                        layer = self._depthwise_separable_conv(layer, 160, scope='conv_ds_' + str(idx))
+                    layer = self._depthwise_separable_conv(layer, 320, scope='conv_ds_8')
                     # layer = self._depthwise_separable_conv(layer, 400, scope='conv_ds_14')
                     layer = tf.contrib.layers.avg_pool2d(inputs=layer, kernel_size=[8, 8], stride=1, padding='VALID')
-                    layer = tf.reshape(layer, shape=[-1, 1 * 1 * 640])
+                    layer = tf.reshape(layer, shape=[-1, 1 * 1 * 320])
                     self.logits = tf.contrib.layers.fully_connected(inputs=layer, num_outputs=10, activation_fn=None,
                                                                     weights_initializer=self.weight_initializer, weights_regularizer=self.etc_regularizer)
-                    loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y), name='cross_entropy_loss')
-                    reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-                    self.loss = tf.add_n([loss] + reg_losses, name='loss')
+                    self.loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y), name='cross_entropy_loss')
+                    # reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
+                    # self.loss = tf.add_n([loss] + reg_losses, name='loss')
                     self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
                     self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), self.y), dtype=tf.float32))
 
     def train(self, x, y):
-        return self.sess.run([self.accuracy, self.optimizer], feed_dict={self.X: x, self.y: y, self.training: True, self.dropout_rate: 0.6})
+        return self.sess.run([self.accuracy, self.optimizer], feed_dict={self.X: x, self.y: y, self.training: True, self.dropout_rate: 0.8})
 
     def validation(self, x, y):
         return self.sess.run([self.loss, self.accuracy], feed_dict={self.X: x, self.y: y, self.training: False, self.dropout_rate: 1.0})

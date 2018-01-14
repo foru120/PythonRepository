@@ -17,7 +17,7 @@ value_num = 2
 def read_data():
     tot_image_data = []
     for idx, filename in enumerate(os.listdir('data\\')):
-        im = Image.open('D:\\05_source\\PythonRepository\\DeepLearningTechniques\\DC_GAN\\data\\' + str(filename))
+        im = Image.open('D:\\05_source\\PythonRepository\\DeepLearningTechniques\\DC_GAN\\Gogh\\' + str(filename))
         load_img = im.load()
         temp_data = []
         for i in range(0, 64):
@@ -69,15 +69,15 @@ def create_image(images, epoch):
             for j in range(0, new_img.size[1]):
                 load_newimg[i, j] = tuple(((images[idx][i][j] + 1) / 2) * 255)
 
-        if not os.path.isdir('gen_image\\' + str(epoch)):
-            os.mkdir('gen_image\\' + str(epoch))
+        if not os.path.isdir('gen_image\\3th_test\\' + str(epoch)):
+            os.mkdir('gen_image\\3th_test\\' + str(epoch))
 
-        new_img.save('gen_image\\' + str(epoch) + '\\' + str(idx) + '.jpeg')
+        new_img.save('gen_image\\3th_test\\' + str(epoch) + '\\' + str(idx) + '.jpeg')
 
 def save_image(images, sess, epoch):
     generated = sess.run(images)
 
-    with open('gen_image\\' + str(epoch) + '.jpeg', 'wb') as f:
+    with open('gen_image\\3th_test\\' + str(epoch) + '.jpeg', 'wb') as f:
         f.write(generated)
 
 # config = tf.ConfigProto()
