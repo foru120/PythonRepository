@@ -62,14 +62,24 @@
 #
 # for idx, word in enumerate(s):
 #     print(convert_word(word, alphabet_counter(s[:idx], word)), end='')
-
-s = 'asdfqwerszz'
+import time
 word_count = {}
 
 def convert_word_func(word, cnt):
+    cnt = cnt%26
     return chr(ord(word) + cnt - 26) if (ord(word) + cnt) > ord('z') else chr(ord(word) + cnt)
 
-for idx, word in enumerate(s):
+def file_read():
+    with open('test.txt', mode='rt') as f:
+        return f.read()
+
+def file_write(d):
+    with open('result.txt', mode='wt') as f:
+        f.write(d)
+
+result_text = ''
+stime = time.time()
+for idx, word in enumerate(file_read()):
     convert_word = ''
     if word in word_count:
         convert_word = convert_word_func(word, word_count[word])
@@ -77,4 +87,15 @@ for idx, word in enumerate(s):
     else:
         convert_word = word
         word_count[word] = 1
-    print(convert_word, end='')
+    result_text += convert_word
+    # print(convert_word, end='')
+file_write(result_text)
+etime = time.time()
+
+print('\n' + str(etime - stime))
+
+# def generate_data():
+#     with open('test.txt', mode='wt') as file:
+#         file.write('xyza'*100000)
+#
+# generate_data()
