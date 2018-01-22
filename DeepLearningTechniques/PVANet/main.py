@@ -12,6 +12,6 @@ ANNOTATION_FILE_PATH = 'D:\\100_dataset\\coco\\annotations_trainval2017\\annotat
 def load_data_from_json():
     with open(ANNOTATION_FILE_PATH+'instances_train2017.json') as file:
         data = json.load(file, object_pairs_hook=OrderedDict)
-    pprint(data.keys())
+    pprint(data)
 
 load_data_from_json()
