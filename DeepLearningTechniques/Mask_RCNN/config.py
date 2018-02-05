@@ -51,20 +51,25 @@ class Config(object):
     # Number of validation steps to run at the end of every training epoch.
     # A bigger number improves accuracy of validation stats, but slows
     # down the training.
+    # 매번 훈련 epoch 의 끝에서 수행하는 validation 단계의 수
     VALIDATION_STEPS = 50
 
     # The strides of each layer of the FPN(Feature Pyramid Network) Pyramid. These values
     # are based on a Resnet101 backbone.
+    # FPN(Feature Pyramid Network) 의 각 layer 의 stride
     BACKBONE_STRIDES = [4, 8, 16, 32, 64]
 
     # Number of classification classes (including background)
+    # 분류 클래스 수 (background 포함)
     NUM_CLASSES = 1  # Override in sub-classes
 
     # Length of square anchor side in pixels
+    # 픽셀 당 정사각형 anchor 측면 길이
     RPN_ANCHOR_SCALES = (32, 64, 128, 256, 512)
 
     # Ratios of anchors at each cell (width/height)
     # A value of 1 represents a square anchor, and 0.5 is a wide anchor
+    # 각 cell 에서 anchor 들의 비율 (가로/세로)
     RPN_ANCHOR_RATIOS = [0.5, 1, 2]
 
     # Anchor stride

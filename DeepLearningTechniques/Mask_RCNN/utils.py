@@ -503,7 +503,8 @@ def generate_anchors(scales, ratios, shape, feature_stride, anchor_stride):
         value is 2 then generate anchors for every other feature map pixel.
     """
     # Get all combinations of scales and ratios
-    scales, ratios = np.meshgrid(np.array(scales), np.array(ratios))
+    # 크기와 비율의 모든 조합을 얻기 위해 np.meshgrid() 함수 사용
+    scales, ratios = np.meshgrid(np.array(scales), np.array(ratios))  # np.meshgrid(x, y), 2차원 영역에 대한 (x,y) 좌표값 쌍, 그리드 포인트를 생성하는 함수
     scales = scales.flatten()
     ratios = ratios.flatten()
 
