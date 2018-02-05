@@ -62,40 +62,97 @@
 #
 # for idx, word in enumerate(s):
 #     print(convert_word(word, alphabet_counter(s[:idx], word)), end='')
-import time
-word_count = {}
-
-def convert_word_func(word, cnt):
-    cnt = cnt%26
-    return chr(ord(word) + cnt - 26) if (ord(word) + cnt) > ord('z') else chr(ord(word) + cnt)
-
-def file_read():
-    with open('test.txt', mode='rt') as f:
-        return f.read()
-
-def file_write(d):
-    with open('result.txt', mode='wt') as f:
-        f.write(d)
-
-result_text = ''
-stime = time.time()
-for idx, word in enumerate(file_read()):
-    convert_word = ''
-    if word in word_count:
-        convert_word = convert_word_func(word, word_count[word])
-        word_count[word] += 1
-    else:
-        convert_word = word
-        word_count[word] = 1
-    result_text += convert_word
-    # print(convert_word, end='')
-file_write(result_text)
-etime = time.time()
-
-print('\n' + str(etime - stime))
+# import time
+# word_count = {}
+#
+# def convert_word_func(word, cnt):
+#     cnt = cnt%26
+#     return chr(ord(word) + cnt - 26) if (ord(word) + cnt) > ord('z') else chr(ord(word) + cnt)
+#
+# def file_read():
+#     with open('test.txt', mode='rt') as f:
+#         return f.read()
+#
+# def file_write(d):
+#     with open('result.txt', mode='wt') as f:
+#         f.write(d)
+#
+# result_text = ''
+# stime = time.time()
+# for idx, word in enumerate(file_read()):
+#     convert_word = ''
+#     if word in word_count:
+#         convert_word = convert_word_func(word, word_count[word])
+#         word_count[word] += 1
+#     else:
+#         convert_word = word
+#         word_count[word] = 1
+#     result_text += convert_word
+#     # print(convert_word, end='')
+# file_write(result_text)
+# etime = time.time()
+#
+# print('\n' + str(etime - stime))
 
 # def generate_data():
 #     with open('test.txt', mode='wt') as file:
 #         file.write('xyza'*100000)
 #
 # generate_data()
+import numpy as np
+a = np.array([['16', '20', '5', '3', '16'],
+              ['13', '4', '15', '5', '2'],
+              ['7', '19', '6', '5', '19'],
+              ['19', '14', '13', '2', '4'],
+              ['9', '8', '5', '19', '4']
+             ])
+
+def search_min_max_index(value):
+    min_idx, max_idx = [], []
+
+    min_tmp = [idx.tolist() for idx in np.where(a.astype(np.int32) == a.astype(np.int32).min())]
+    max_tmp = [idx.tolist() for idx in np.where(a.astype(np.int32) == a.astype(np.int32).max())]
+
+    for idx in zip(min_tmp[0], min_tmp[1]):
+        min_idx.append([idx[0], idx[1]])
+
+    for idx in zip(max_tmp[0], max_tmp[1]):
+        max_idx.append([idx[0], idx[1]])
+
+    return min_idx, max_idx
+
+def check_min_max_value(value):
+    tot_tmp = []
+    min_idx, max_idx = search_min_max_index(value)
+
+    for row_idx in range(value.shape[0]):
+        tmp = []
+        for col_idx in range(value.shape[1]):
+            if [row_idx, col_idx] in min_idx:  # min 값에 해당하는 인덱스가 있는 경우
+                tmp.append(value[row_idx][col_idx] + '(MIN)')
+            elif [row_idx, col_idx] in max_idx:  # max 값에 해당하는 인덱스가 있는 경우
+                tmp.append(value[row_idx][col_idx] + '(MAX)')
+            else:
+                tmp.append(value[row_idx][col_idx])
+        tot_tmp.append(tmp)
+
+    return np.array(tot_tmp)
+
+print(check_min_max_value(a))
+
+
+data = np.random.randint(1, 21, size=(5, 5))
+min_number, max_number = np.min(data), np.max(data)
+min_idx = data == min_number
+max_idx = data == max_number
+
+data = data.astype(np.str)
+
+data[min_idx] = str(min_number) + '(MIN)'
+data[max_idx] = str(max_number) + '(MAX)'
+print(data)
+
+# print(np.where([[True, False], [True, True]], [[1, 2], [3, 4]], [[9, 8], [7, 6]]))
+
+# for c, x, y in zip([[True, False], [True, True]], [[1, 2], [3, 4]], [[9, 8], [7, 6]]):
+#     print(c, x, y)
