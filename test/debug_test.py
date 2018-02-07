@@ -99,60 +99,93 @@
 #         file.write('xyza'*100000)
 #
 # generate_data()
-import numpy as np
-a = np.array([['16', '20', '5', '3', '16'],
-              ['13', '4', '15', '5', '2'],
-              ['7', '19', '6', '5', '19'],
-              ['19', '14', '13', '2', '4'],
-              ['9', '8', '5', '19', '4']
-             ])
-
-def search_min_max_index(value):
-    min_idx, max_idx = [], []
-
-    min_tmp = [idx.tolist() for idx in np.where(a.astype(np.int32) == a.astype(np.int32).min())]
-    max_tmp = [idx.tolist() for idx in np.where(a.astype(np.int32) == a.astype(np.int32).max())]
-
-    for idx in zip(min_tmp[0], min_tmp[1]):
-        min_idx.append([idx[0], idx[1]])
-
-    for idx in zip(max_tmp[0], max_tmp[1]):
-        max_idx.append([idx[0], idx[1]])
-
-    return min_idx, max_idx
-
-def check_min_max_value(value):
-    tot_tmp = []
-    min_idx, max_idx = search_min_max_index(value)
-
-    for row_idx in range(value.shape[0]):
-        tmp = []
-        for col_idx in range(value.shape[1]):
-            if [row_idx, col_idx] in min_idx:  # min 값에 해당하는 인덱스가 있는 경우
-                tmp.append(value[row_idx][col_idx] + '(MIN)')
-            elif [row_idx, col_idx] in max_idx:  # max 값에 해당하는 인덱스가 있는 경우
-                tmp.append(value[row_idx][col_idx] + '(MAX)')
-            else:
-                tmp.append(value[row_idx][col_idx])
-        tot_tmp.append(tmp)
-
-    return np.array(tot_tmp)
-
-print(check_min_max_value(a))
-
-
-data = np.random.randint(1, 21, size=(5, 5))
-min_number, max_number = np.min(data), np.max(data)
-min_idx = data == min_number
-max_idx = data == max_number
-
-data = data.astype(np.str)
-
-data[min_idx] = str(min_number) + '(MIN)'
-data[max_idx] = str(max_number) + '(MAX)'
-print(data)
+# import numpy as np
+# a = np.array([['16', '20', '5', '3', '16'],
+#               ['13', '4', '15', '5', '2'],
+#               ['7', '19', '6', '5', '19'],
+#               ['19', '14', '13', '2', '4'],
+#               ['9', '8', '5', '19', '4']
+#              ])
+#
+# def search_min_max_index(value):
+#     min_idx, max_idx = [], []
+#
+#     min_tmp = [idx.tolist() for idx in np.where(a.astype(np.int32) == a.astype(np.int32).min())]
+#     max_tmp = [idx.tolist() for idx in np.where(a.astype(np.int32) == a.astype(np.int32).max())]
+#
+#     for idx in zip(min_tmp[0], min_tmp[1]):
+#         min_idx.append([idx[0], idx[1]])
+#
+#     for idx in zip(max_tmp[0], max_tmp[1]):
+#         max_idx.append([idx[0], idx[1]])
+#
+#     return min_idx, max_idx
+#
+# def check_min_max_value(value):
+#     tot_tmp = []
+#     min_idx, max_idx = search_min_max_index(value)
+#
+#     for row_idx in range(value.shape[0]):
+#         tmp = []
+#         for col_idx in range(value.shape[1]):
+#             if [row_idx, col_idx] in min_idx:  # min 값에 해당하는 인덱스가 있는 경우
+#                 tmp.append(value[row_idx][col_idx] + '(MIN)')
+#             elif [row_idx, col_idx] in max_idx:  # max 값에 해당하는 인덱스가 있는 경우
+#                 tmp.append(value[row_idx][col_idx] + '(MAX)')
+#             else:
+#                 tmp.append(value[row_idx][col_idx])
+#         tot_tmp.append(tmp)
+#
+#     return np.array(tot_tmp)
+#
+# print(check_min_max_value(a))
+#
+#
+# data = np.random.randint(1, 21, size=(5, 5))
+# min_number, max_number = np.min(data), np.max(data)
+# min_idx = data == min_number
+# max_idx = data == max_number
+#
+# data = data.astype(np.str)
+#
+# data[min_idx] = str(min_number) + '(MIN)'
+# data[max_idx] = str(max_number) + '(MAX)'
+# print(data)
 
 # print(np.where([[True, False], [True, True]], [[1, 2], [3, 4]], [[9, 8], [7, 6]]))
 
 # for c, x, y in zip([[True, False], [True, True]], [[1, 2], [3, 4]], [[9, 8], [7, 6]]):
 #     print(c, x, y)
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as anim
+from collections import deque
+import random
+
+MAX_X = 100  # width of graph
+MAX_Y = 1000  # height of graph
+
+# intialize line to horizontal line on 0
+line = deque([0.0] * MAX_X, maxlen=MAX_X)
+
+
+def update(fn, l2d):
+    # simulate data from serial within +-5 of last datapoint
+    dy = random.randint(-5, 5)
+    # add new point to deque
+    line.append(line[MAX_X - 1] + dy)
+    # set the l2d to the new line coords
+    # args are ([x-coords], [y-coords])
+    l2d.set_data(range(int(-MAX_X / 2), int(MAX_X / 2)), line)
+
+
+fig = plt.figure()
+# make the axes revolve around [0,0] at the center
+# instead of the x-axis being 0 - +100, make it -50 - +50
+# ditto for y-axis -512 - +512
+a = plt.axes(xlim=(-(MAX_X / 2), MAX_X / 2), ylim=(-(MAX_Y / 2), MAX_Y / 2))
+# plot an empty line and keep a reference to the line2d instance
+l1, = a.plot([], [])
+ani = anim.FuncAnimation(fig, update, fargs=(l1,), interval=50)
+
+plt.show()
