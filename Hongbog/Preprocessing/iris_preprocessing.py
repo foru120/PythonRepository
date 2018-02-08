@@ -1,24 +1,31 @@
 import os
 import shutil
 from PIL import Image
+import re
+import numpy as np
 
-# ORIGINAL_IMAGE_PATH = 'D:\\100_dataset\\iris\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2'  # 분할 전 이미지 경로
-ORIGINAL_IMAGE_PATH = 'D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2'
-NEW_IMAGE_PATH = 'D:\\100_dataset\\iris\\casia_preprocessing'  # 분할 후 이미지 경로
+ORIGINAL_IMAGE_PATH = 'D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2'  # 분할 전 이미지 경로
+NEW_IMAGE_PATH = 'D:\\Data\\casia_preprocessing'  # 분할 후 이미지 경로
+GROUND_TRUTH_PATH = os.path.join(NEW_IMAGE_PATH, 'ground_truth.txt')  # ground truth 에 대한 이미지 번호 정보가 있는 파일 경로
 
-def get_file_path_list(root_path, path_list):
+def get_file_path_list(root_path, path_list, mode):
     '''
-    특정 폴더 밑에 있는 파일들을 리스트화하는 함수 (os.walk() 참조)
+    특정 폴더 밑에 있는 파일 경로를 리스트화하는 함수 (os.walk() 참조)
     :param root_path: 파일이 포함된 상위 경로
     :param path_list: 파일의 경로 정보를 담을 리스트
-    :return: 이미지 경로, type: list
+    :param mode: 'C' -> (Cropped) Cropped 된 이미지 폴더를 대상으로 파일 검출,  'E' -> (Edge), edge 와 non-edge 폴더를 대상으로 파일 검출
+    :return: 이미지 경로, type -> list
     '''
     for leaf_path in os.listdir(root_path):
         full_path = os.path.join(root_path, leaf_path)
         if os.path.isdir(full_path):
-            path_list = get_file_path_list(full_path, path_list)
+            path_list = get_file_path_list(full_path, path_list, mode)
         elif os.path.isfile(full_path):
-            path_list.append(full_path)
+            if mode == 'C':
+                path_list.append(full_path)
+            elif mode == 'E':
+                if re.search('.*(edge)|(non-edge).*', full_path):
+                    path_list.append(full_path)
     return path_list
 
 def create_directory(root_folder, branch_folder, file_name):
@@ -64,7 +71,7 @@ def start_image_patching():
     이미지 패치 관련 Main 함수
     :return: None
     '''
-    path_list = get_file_path_list(os.path.abspath(ORIGINAL_IMAGE_PATH), [])
+    path_list = get_file_path_list(ORIGINAL_IMAGE_PATH, [], 'C')
     for ori_path in path_list:
         root_folder, branch_folder, file_name = os.path.splitext(ori_path)[0].split(os.path.sep)[-3: ]
         if not os.path.isdir(os.path.join(NEW_IMAGE_PATH, root_folder, branch_folder, file_name)):
@@ -72,35 +79,69 @@ def start_image_patching():
         print('create patch image, ', root_folder, branch_folder, os.path.splitext(file_name)[0])
         create_patch_image(root_folder, branch_folder, file_name, ori_path)
 
-def ground_truth_image():
+def ground_truth_image_move():
     '''
     edge 이미지와 non-edge 이미지를 각각 해당 폴더로 이동시키는 함수
     :return: None
     '''
-    GROUND_TRUTH_PATH = 'D:\\Data\\ground_truth.txt'  # ground truth 에 대한 이미지 번호 정보가 있는 파일 경로
-    IMAGE_PATH = 'D:\\Data\\casia_preprocessing'  # 패치 이미지의 최 상위 경로
     extension = '.bmp'  # 확장자
 
     with open(GROUND_TRUTH_PATH) as file:
         for text in file:
             root_path, branch_path, leaf_path, file_nums = text.split()
             for file_num in file_nums.split(','):
-                shutil.move(os.path.join(IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image', file_num + extension),
-                            os.path.join(IMAGE_PATH, root_path, branch_path, leaf_path, 'edge', file_num + extension))
-            for file_path in os.listdir(os.path.join(IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image')):
+                shutil.move(os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image', file_num + extension),
+                            os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'edge', file_num + extension))
+            for file_path in os.listdir(os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image')):
                 file_num = os.path.splitext(file_path)[0].split(os.path.sep)[-1]
-                shutil.move(os.path.join(IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image', file_num + extension),
-                            os.path.join(IMAGE_PATH, root_path, branch_path, leaf_path, 'non-edge', file_num + extension))
+                shutil.move(os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image', file_num + extension),
+                            os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'non-edge', file_num + extension))
 
-ground_truth_image()
+def image_gray_scale_extraction(img_path):
+    '''
+    경로에 해당하는 이미지 파일의 GrayScale 값을 추출하는 함수
+    :param img_path: 이미지 경로
+    :return: 이미지에서 추출된 GrayScale 값, type -> list
+    '''
+    img_data = []
+    x_pixel, y_pixel = (16, 16)
+    gray_img = Image.open(img_path).convert('L')  # RGB -> Image.open(img_path).convert('RGB')
+    for x in range(0, x_pixel):
+        for y in range(0, y_pixel):
+            img_data.append(gray_img.getpixel((x, y)))
+    return img_data
 
-# import re
-# path_list = get_file_path_list(os.path.abspath(ORIGINAL_IMAGE_PATH), [])
-# for ori_path in path_list:
-#     root_folder, branch_folder, file_name = os.path.splitext(ori_path)[0].split(os.path.sep)[-3:]
-#     if re.match('.*\.bmp', ori_path):
-#         ori_img = Image.open(ori_path)  # rgb_im = im.convert('RGB')
-#         width, height = ori_img.size
-#         if (width == 640) and (height == 480):
-#             print('right' if root_folder == 'device1' else 'left', file_name)
-# start_image_patching()
+def data_to_file(img_data, name):
+    '''
+    추출된 이미지 값을 file 로 저장하는 함수
+    :param img_data: 추출된 이미지 값
+    :param name: 파일 이름
+    :return: None
+    '''
+    with open(os.path.join(NEW_IMAGE_PATH, 'image_data', str(name)+'.txt'), mode='w') as file:
+        for idx in np.random.permutation(len(img_data)):
+            file.write(','.join([str(data) for data in img_data[idx]]) + '\n')
+
+def image_to_data():
+    '''
+    만들어진 패치 크기 이미지의 Gray Scale 값을 파일로 저장하는 함수
+    :return: None
+    '''
+    img_data, cnt_per_file = [], 1200
+    for img_path in get_file_path_list(NEW_IMAGE_PATH, [], 'E'):
+        img_gray_values = image_gray_scale_extraction(img_path)
+        if re.search('.*non-edge.*', img_path):  # edge 이미지가 아닐경우 label -> 1로 설정
+            img_gray_values.append(1)
+        else:  # edge 이미지일 경우 label -> 2로 설정
+            img_gray_values.append(2)
+        img_data.append(img_gray_values)
+
+        if len(img_data) == cnt_per_file:
+            file_names = [int(os.path.splitext(file_name)[0]) for file_name in os.listdir(os.path.join(NEW_IMAGE_PATH, 'image_data'))]
+            if len(file_names) == 0:  # 생성된 데이터 파일이 없는 경우
+                data_to_file(img_data, 1)
+            else:  # 기존에 생성된 데이터 파일이 있는 경우
+                data_to_file(img_data, max(file_names)+1)
+            img_data = []
+
+image_to_data()
