@@ -33,7 +33,7 @@ class Model:
                     is_training=self.training):
                     layer = separable_conv2d(inputs=layer, num_outputs=None, kernel_size=kernel,
                                              stride=_stride, depth_multiplier=wm, padding='SAME',
-                                             weights_regularizer=self.regularizer * 1e-4,
+                                             weights_regularizer=l2_regularizer(1e-4),
                                              activation_fn=None, scope='depthwise_conv')
                     layer = batch_norm(inputs=layer, scope='dw_batch_norm')
                     layer = conv2d(inputs=layer, num_outputs=output * wm, kernel_size=1,
@@ -105,6 +105,7 @@ class Model:
         reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
         self.loss = tf.add_n([loss] + reg_losses, name='loss')
         self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
+        # self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), self.y), dtype=tf.float32))
 
     def predict(self, x_test):
@@ -114,9 +115,8 @@ class Model:
         return self.sess.run(self.accuracy, feed_dict={self.X: x_test, self.y: y_test, self.training: False, self.dropout_rate: 1.0})
 
     def train(self, x_data, y_data):
-        return self.sess.run([self.accuracy, self.optimizer], feed_dict={self.X: x_data, self.y: y_data,
+        return self.sess.run([self.accuracy, self.loss, self.optimizer], feed_dict={self.X: x_data, self.y: y_data,
                                                                                     self.training: True, self.dropout_rate: 0.8})
-
     def validation(self, x_test, y_test):
         return self.sess.run([self.loss, self.accuracy], feed_dict={self.X: x_test, self.y: y_test, self.training: False, self.dropout_rate: 1.0})
 
