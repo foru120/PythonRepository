@@ -130,9 +130,9 @@ def image_to_data():
     img_data, cnt_per_file = [], 1200
     for img_path in get_file_path_list(NEW_IMAGE_PATH, [], 'E'):
         img_gray_values = image_gray_scale_extraction(img_path)
-        if re.search('.*non-edge.*', img_path):  # edge 이미지가 아닐경우 label -> 1로 설정
+        if re.search('.*non-edge.*', img_path):  # edge 이미지가 아닐경우 label -> 0로 설정
             img_gray_values.append(0)
-        else:  # edge 이미지일 경우 label -> 2로 설정
+        else:  # edge 이미지일 경우 label -> 1로 설정
             img_gray_values.append(1)
         img_data.append(img_gray_values)
 

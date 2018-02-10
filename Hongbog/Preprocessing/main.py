@@ -37,7 +37,7 @@ class Neuralnet:
                     tot_data = data
                 else:
                     tot_data = np.concatenate((tot_data, data), axis=0)
-            np.random.shuffle(tot_data)
+            # np.random.shuffle(tot_data)
             self._tot_x, self._tot_y = tot_data[:, 0:-1], tot_data[:, -1]
             self._data_loading()  # data loading
 
@@ -52,7 +52,7 @@ class Neuralnet:
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'log/image_processing_param.ckpt', '훈련된 파라미터 값이 저장된 경로')
+        flags.DEFINE_string('trained_param_path', 'log/0003/image_processing_param.ckpt', '훈련된 파라미터 값이 저장된 경로')
 
     def _data_loading(self):
         '''
@@ -109,6 +109,7 @@ class Neuralnet:
             for epoch in range(self._FLAGS.epochs):
                 train_acc_list = []
                 valid_acc_list = []
+                tot_train_loss = 0.
                 tot_valid_loss = 0.
 
                 stime = time.time()
@@ -119,6 +120,7 @@ class Neuralnet:
                     if epoch+1 in (50, 75):  # dynamic learning rate
                         self._model.learning_rate = self._model.learning_rate/10
                     train_acc, train_loss, _ = self._model.train(train_x_batch.reshape(-1, 16, 16, 1), train_y_batch)
+                    tot_train_loss += train_loss / self._FLAGS.batch_size
                     train_acc_list.append(train_acc)
 
                 # 검증 부분
@@ -130,7 +132,7 @@ class Neuralnet:
 
                 etime = time.time()
 
-                print('epoch:', epoch+1, ', validation accuracy:', np.mean(np.array(valid_acc_list)), ', validation loss:', tot_valid_loss, ', train time:', etime-stime)
+                print('epoch:', epoch+1, ', train accuracy:', np.mean(np.array(train_acc_list)), ', train loss:', tot_train_loss, ', validation accuracy:', np.mean(np.array(valid_acc_list)), ', validation loss:', tot_valid_loss, ', train time:', etime-stime)
 
                 # Early Stopping 조건 확인
                 if tot_valid_loss < best_loss_val:
@@ -146,9 +148,9 @@ class Neuralnet:
                     print('Early stopping - epoch(' + str(epoch+1) + ')')
                     break
 
-            self._image_screeshot()
+            self._test()
 
-    def test(self):
+    def _test(self):
         '''
         신경망을 테스트하는 함수
         :return: None
@@ -201,8 +203,10 @@ class Neuralnet:
             self._saver = tf.train.Saver()
             self._saver.restore(sess, self._FLAGS.trained_param_path)
             logit = self._model.predict(patches_data.reshape(-1, 16, 16, 1))
-            print(logit)
+            print([idx for idx, value in enumerate(logit) if value[0] <= value[1]])
 
 neuralnet = Neuralnet(is_train=True)
 neuralnet.train()
-neuralnet.test()
+
+# neuralnet = Neuralnet(is_train=False)
+# neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0029\\0029_000.bmp')

@@ -1,4 +1,5 @@
 import tensorflow as tf
+from tensorflow.python.ops import array_ops
 from tensorflow.contrib.layers import *
 
 class Model:
@@ -100,16 +101,15 @@ class Model:
 
         self.logits = dense_net()
         self.prob = tf.nn.softmax(logits=self.logits, name='output')
-        loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y)
-        loss = tf.reduce_mean(loss, name='cross_entropy_loss')
-        reg_losses = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES)
-        self.loss = tf.add_n([loss] + reg_losses, name='loss')
+        loss = self._focal_loss()
+        # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y)
+        # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
+        self.loss = tf.add_n([loss] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
         self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
-        # self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), self.y), dtype=tf.float32))
 
     def predict(self, x_test):
-        return self.sess.run(self.logits, feed_dict={self.X: x_test, self.training: False, self.dropout_rate: 1.0})
+        return self.sess.run(self.prob, feed_dict={self.X: x_test, self.training: False, self.dropout_rate: 1.0})
 
     def get_accuracy(self, x_test, y_test):
         return self.sess.run(self.accuracy, feed_dict={self.X: x_test, self.y: y_test, self.training: False, self.dropout_rate: 1.0})
@@ -120,7 +120,16 @@ class Model:
     def validation(self, x_test, y_test):
         return self.sess.run([self.loss, self.accuracy], feed_dict={self.X: x_test, self.y: y_test, self.training: False, self.dropout_rate: 1.0})
 
-    def parametric_relu(self, _x, name):
+    def _focal_loss(self, alpha=0.25, gamma=2):
+        zeros = array_ops.zeros_like(self.prob, dtype=self.prob.dtype)
+        onehot_y = tf.one_hot(indices=self.y, depth=2)
+        pos_p_sub = array_ops.where(onehot_y >= self.prob, onehot_y - self.prob, zeros)
+        neg_p_sub = array_ops.where(onehot_y > zeros, zeros, self.prob)
+        per_entry_cross_ent = - alpha * (pos_p_sub ** gamma) * tf.log(tf.clip_by_value(self.prob, 1e-8, 1.0)) \
+                              - (1 - alpha) * (neg_p_sub ** gamma) * tf.log(tf.clip_by_value(1.0 - self.prob, 1e-8, 1.0))
+        return tf.reduce_mean(per_entry_cross_ent)
+
+    def _parametric_relu(self, _x, name):
         alphas = tf.get_variable(name+'alphas', _x.get_shape()[-1], initializer=tf.constant_initializer(0.01), dtype=tf.float32)
         pos = tf.nn.relu(_x, name=name+'p_relu')
         neg = alphas * (_x - abs(_x)) * 0.5
