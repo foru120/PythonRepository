@@ -157,35 +157,47 @@
 # for c, x, y in zip([[True, False], [True, True]], [[1, 2], [3, 4]], [[9, 8], [7, 6]]):
 #     print(c, x, y)
 
+import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as anim
-from collections import deque
-import random
-
-MAX_X = 100  # width of graph
-MAX_Y = 1000  # height of graph
-
-# intialize line to horizontal line on 0
-line = deque([0.0] * MAX_X, maxlen=MAX_X)
+import matplotlib.animation as animation
 
 
-def update(fn, l2d):
-    # simulate data from serial within +-5 of last datapoint
-    dy = random.randint(-5, 5)
-    # add new point to deque
-    line.append(line[MAX_X - 1] + dy)
-    # set the l2d to the new line coords
-    # args are ([x-coords], [y-coords])
-    l2d.set_data(range(int(-MAX_X / 2), int(MAX_X / 2)), line)
+def data_gen(t=0):
+    cnt = 0
+    while cnt < 1000:
+        cnt += 1
+        t += 0.1
+        yield t, np.sin(2*np.pi*t) * np.exp(-t/10.)
 
 
-fig = plt.figure()
-# make the axes revolve around [0,0] at the center
-# instead of the x-axis being 0 - +100, make it -50 - +50
-# ditto for y-axis -512 - +512
-a = plt.axes(xlim=(-(MAX_X / 2), MAX_X / 2), ylim=(-(MAX_Y / 2), MAX_Y / 2))
-# plot an empty line and keep a reference to the line2d instance
-l1, = a.plot([], [])
-ani = anim.FuncAnimation(fig, update, fargs=(l1,), interval=50)
+def init():
+    ax.set_ylim(-1.1, 1.1)
+    ax.set_xlim(0, 10)
+    del xdata[:]
+    del ydata[:]
+    line.set_data(xdata, ydata)
+    return line,
 
+fig, ax = plt.subplots()
+line, = ax.plot([], [], lw=2)
+ax.grid()
+xdata, ydata = [], []
+
+
+def run(data):
+    # update the data
+    t, y = data
+    xdata.append(t)
+    ydata.append(y)
+    xmin, xmax = ax.get_xlim()
+
+    if t >= xmax:
+        ax.set_xlim(xmin, 2*xmax)
+        ax.figure.canvas.draw()
+    line.set_data(xdata, ydata)
+
+    return line,
+
+ani = animation.FuncAnimation(fig, run, data_gen, blit=False, interval=10,
+                              repeat=False, init_func=init)
 plt.show()
