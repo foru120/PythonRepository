@@ -34,7 +34,7 @@ with tf.Session() as sess:
         for iteration in range(n_iterations):
             # train the model
             pass
-        save_path = saver.save(sess, 'log/my_model.ckpt')
+        save_path = saver.save(sess, 'train_log/my_model.ckpt')
     else:
-        saver.restore(sess, 'log/my_model.ckpt')
+        saver.restore(sess, 'train_log/my_model.ckpt')
         # use the model

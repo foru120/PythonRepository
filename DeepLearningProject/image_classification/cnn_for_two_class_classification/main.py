@@ -96,7 +96,7 @@ with tf.Session() as sess:
         ## ▣ early stopping - Created by 배준호
         ##  - prev epoch 과 curr epoch 의 cost 를 비교해서 curr epoch 의 cost 가 더 큰 경우 종료하는 기능
         ################################################################################################################
-        saver.save(sess, 'log/epoch_' + str(epoch + 1) +'.ckpt')
+        saver.save(sess, 'train_log/epoch_' + str(epoch + 1) +'.ckpt')
         early_stopping_list.append(avg_cost_list)
         diff = 0
         if len(early_stopping_list) >= 2:
@@ -133,7 +133,7 @@ with tf.Session() as sess:
 
     sess.run(tf.global_variables_initializer())
     saver = tf.train.Saver()
-    saver.restore(sess, 'log/epoch_' + str(last_epoch) + '.ckpt')
+    saver.restore(sess, 'train_log/epoch_' + str(last_epoch) + '.ckpt')
 
     print('Testing Started!')
 

@@ -133,7 +133,7 @@ def non_max_suppression(boxes, scores, threshold):
 def apply_box_deltas(boxes, deltas):
     """Applies the given deltas to the given boxes.
     boxes: [N, (y1, x1, y2, x2)]. Note that (y2, x2) is outside the box.
-    deltas: [N, (dy, dx, log(dh), log(dw))]
+    deltas: [N, (dy, dx, train_log(dh), train_log(dw))]
     """
     boxes = boxes.astype(np.float32)
     # Convert to y, x, h, w

@@ -122,7 +122,7 @@ with tf.Session() as sess:
             best_loss_val = d_tot_loss
             check_since_last_progress = 0
             best_model_params = get_model_params()
-            saver.save(sess, 'log/dcgan_v1.ckpt')
+            saver.save(sess, 'train_log/dcgan_v1.ckpt')
         else:
             check_since_last_progress += 1
 

@@ -2,7 +2,8 @@ import tensorflow as tf
 import numpy as np
 import os
 import time
-import matplotlib.pyplot as plt
+from collections import deque
+import cx_Oracle
 
 from PIL import Image
 from PIL import ImageGrab
@@ -26,20 +27,26 @@ class Neuralnet:
     _saver = None
     _best_model_params = None
 
-    def __init__(self, is_train):
+    '''모니터링 대상 변수'''
+    train_acc_mon = deque(maxlen=100)
+    valid_acc_mon = deque(maxlen=100)
+    train_loss_mon = deque(maxlen=100)
+    valid_loss_mon = deque(maxlen=100)
+
+    def __init__(self, is_train, save_type):
+        self.save_type = save_type
         self._flag_setting()  # flag setting
 
-        if is_train == True:
-            tot_data = []
-            for idx, file_name in enumerate(os.listdir(self._FLAGS.image_data_path)):
-                data = np.loadtxt(os.path.join(self._FLAGS.image_data_path, file_name), delimiter=',')
-                if idx == 0:
-                    tot_data = data
-                else:
-                    tot_data = np.concatenate((tot_data, data), axis=0)
-            # np.random.shuffle(tot_data)
-            self._tot_x, self._tot_y = tot_data[:, 0:-1], tot_data[:, -1]
-            self._data_loading()  # data loading
+        if is_train == True:  # data loading
+            print('Data load start!!!')
+            stime = time.time()
+            self._data_loading()
+            self._data_separation()
+            etime = time.time()
+            print('Data loaded!!! - ' + str(etime - stime))
+
+            if save_type == 'db':
+                self._init_database()
 
     def _flag_setting(self):
         '''
@@ -52,9 +59,28 @@ class Neuralnet:
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'log/0003/image_processing_param.ckpt', '훈련된 파라미터 값이 저장된 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/train_log/0004/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_2018_02_12.txt', '훈련시 모니터링 데이터 저장 경로')
+
+    def _init_database(self):
+        self._conn = cx_Oracle.connect('hongbog/hongbog0102@localhost:1521/orcl')
 
     def _data_loading(self):
+        '''
+        최종 전처리된 데이터 값을 로딩하는 함수
+        :return: None
+        '''
+        tot_data = []
+        for idx, file_name in enumerate(os.listdir(self._FLAGS.image_data_path)):
+            data = np.loadtxt(os.path.join(self._FLAGS.image_data_path, file_name), delimiter=',')
+            if idx == 0:
+                tot_data = data
+            else:
+                tot_data = np.concatenate((tot_data, data), axis=0)
+        np.random.shuffle(tot_data)
+        self._tot_x, self._tot_y = tot_data[:, 0:-1], tot_data[:, -1]
+
+    def _data_separation(self):
         '''
         로딩된 전체 데이터에 대해 훈련 데이터, 테스트 데이터, 검증 데이터로 분리하는 함수
         :return: None
@@ -91,6 +117,29 @@ class Neuralnet:
         im = ImageGrab.grab()
         im.show()
 
+    def _mon_data_to_file(self, train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon):
+        '''
+        모니터링 대상(훈련 정확도, 훈련 손실 값, 검증 정확도, 검증 손실 값) 파일로 저장
+        :param train_acc_mon: 훈련 정확도
+        :param train_loss_mon: 훈련 손실 값
+        :param valid_acc_mon: 검증 정확도
+        :param valid_loss_mon: 검증 손실 값
+        :return: None
+        '''
+        with open(self._FLAGS.mon_data_log_path, 'a') as f:
+            f.write(','.join([str(train_acc_mon), str(valid_acc_mon), str(train_loss_mon), str(valid_loss_mon)]) + '\n')
+
+    def _mon_data_to_db(self, train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time):
+        '''
+        모니터링 대상(훈련 정확도, 훈련 손실 값, 검증 정확도, 검증 손실 값) DB로 저장
+        :param train_acc_mon: 훈련 정확도
+        :param train_loss_mon: 훈련 손실 값
+        :param valid_acc_mon: 검증 정확도
+        :param valid_loss_mon: 검증 손실 값
+        :return: None
+        '''
+
+
     def train(self):
         '''
         신경망을 학습하는 함수
@@ -105,6 +154,8 @@ class Neuralnet:
             best_loss_val = np.infty  # 가장 좋은 loss 값을 저장하는 변수
             check_since_last_progress = 0  # early stopping 조건을 만족하지 않은 횟수
             self._best_model_params = None  # 가장 좋은 모델의 parameter 값을 저장하는 변수
+
+            print('Train start!!')
 
             for epoch in range(self._FLAGS.epochs):
                 train_acc_list = []
@@ -132,7 +183,23 @@ class Neuralnet:
 
                 etime = time.time()
 
-                print('epoch:', epoch+1, ', train accuracy:', np.mean(np.array(train_acc_list)), ', train loss:', tot_train_loss, ', validation accuracy:', np.mean(np.array(valid_acc_list)), ', validation loss:', tot_valid_loss, ', train time:', etime-stime)
+                train_acc_mon = np.mean(np.array(train_acc_list))
+                train_loss_mon = tot_train_loss
+                valid_acc_mon = np.mean(np.array(valid_acc_list))
+                valid_loss_mon = tot_valid_loss
+                train_time = etime - stime
+
+                if self.save_type == 'file':
+                    self._mon_data_to_file(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon)
+                else:
+                    self._mon_data_to_db(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time)
+
+                self.train_acc_mon.append(train_acc_mon)
+                self.train_loss_mon.append(train_loss_mon)
+                self.valid_acc_mon.append(valid_acc_mon)
+                self.valid_loss_mon.append(valid_loss_mon)
+
+                print('epoch:', epoch+1, ', train accuracy:', train_acc_mon, ', train loss:', train_loss_mon, ', validation accuracy:', valid_acc_mon, ', validation loss:', valid_loss_mon, ', train time:', train_time)
 
                 # Early Stopping 조건 확인
                 if tot_valid_loss < best_loss_val:
@@ -152,9 +219,10 @@ class Neuralnet:
 
     def _test(self):
         '''
-        신경망을 테스트하는 함수
+        테스트 데이터에 대해 분류를 수행하는 함수
         :return: None
         '''
+        print('Test start!!!')
         if self._best_model_params:  # 가장 좋은 신경망의 파라미터 값을 Restore
             self._restore_model_params()
 
@@ -167,7 +235,7 @@ class Neuralnet:
 
         print('test accuracy:', np.mean(np.array(test_acc_list)))
 
-    def create_patch_image(self, img_path):
+    def _create_patch_image(self, img_path):
         '''
         패치 사이즈 단위로 이미지 잘라내는 함수
         :param img_path: 패치 단위로 분리할 이미지 경로
@@ -192,7 +260,7 @@ class Neuralnet:
         임의의 이미지에 대해 분류를 수행하는 함수
         :return: None
         '''
-        patches_data = self.create_patch_image(img_path)
+        patches_data = self._create_patch_image(img_path)
 
         tf.reset_default_graph()
 
@@ -205,8 +273,9 @@ class Neuralnet:
             logit = self._model.predict(patches_data.reshape(-1, 16, 16, 1))
             print([idx for idx, value in enumerate(logit) if value[0] <= value[1]])
 
-neuralnet = Neuralnet(is_train=True)
-neuralnet.train()
+if __name__ == '__main__':
+    neuralnet = Neuralnet(is_train=True, save_type='db')
+    neuralnet.train()
 
-# neuralnet = Neuralnet(is_train=False)
-# neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0029\\0029_000.bmp')
+    # neuralnet = Neuralnet(is_train=False)
+    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0029\\0029_000.bmp')

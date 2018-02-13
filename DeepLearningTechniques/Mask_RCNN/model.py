@@ -185,7 +185,7 @@ def resnet_graph(input_image, architecture, stage5=False):
 def apply_box_deltas_graph(boxes, deltas):
     """Applies the given deltas to the given boxes.
     boxes: [N, 4] where each row is y1, x1, y2, x2
-    deltas: [N, 4] where each row is [dy, dx, log(dh), log(dw)]
+    deltas: [N, 4] where each row is [dy, dx, train_log(dh), train_log(dw)]
     """
     # Convert to y, x, h, w
     height = boxes[:, 2] - boxes[:, 0]
@@ -231,7 +231,7 @@ class ProposalLayer(KE.Layer):
 
     Inputs:
         rpn_probs: [batch, anchors, (bg prob, fg prob)]
-        rpn_bbox: [batch, anchors, (dy, dx, log(dh), log(dw))]
+        rpn_bbox: [batch, anchors, (dy, dx, train_log(dh), train_log(dw))]
 
     Returns:
         Proposals in normalized coordinates [batch, rois, (y1, x1, y2, x2)]
@@ -471,7 +471,7 @@ def detection_targets_graph(proposals, gt_class_ids, gt_boxes, gt_masks, config)
     and masks.
     rois: [TRAIN_ROIS_PER_IMAGE, (y1, x1, y2, x2)] in normalized coordinates
     class_ids: [TRAIN_ROIS_PER_IMAGE]. Integer class IDs. Zero padded.
-    deltas: [TRAIN_ROIS_PER_IMAGE, NUM_CLASSES, (dy, dx, log(dh), log(dw))]
+    deltas: [TRAIN_ROIS_PER_IMAGE, NUM_CLASSES, (dy, dx, train_log(dh), train_log(dw))]
             Class-specific bbox refinments.
     masks: [TRAIN_ROIS_PER_IMAGE, height, width). Masks cropped to bbox
            boundaries and resized to neural network output size.
@@ -608,7 +608,7 @@ class DetectionTargetLayer(KE.Layer):
           coordinates
     target_class_ids: [batch, TRAIN_ROIS_PER_IMAGE]. Integer class IDs.
     target_deltas: [batch, TRAIN_ROIS_PER_IMAGE, NUM_CLASSES,
-                    (dy, dx, log(dh), log(dw), class_id)]
+                    (dy, dx, train_log(dh), train_log(dw), class_id)]
                    Class-specific bbox refinments.
     target_mask: [batch, TRAIN_ROIS_PER_IMAGE, height, width)
                  Masks cropped to bbox boundaries and resized to neural
@@ -673,7 +673,7 @@ def refine_detections(rois, probs, deltas, window, config):
     Inputs:
         rois: [N, (y1, x1, y2, x2)] in normalized coordinates
         probs: [N, num_classes]. Class probabilities.
-        deltas: [N, num_classes, (dy, dx, log(dh), log(dw))]. Class-specific
+        deltas: [N, num_classes, (dy, dx, train_log(dh), train_log(dw))]. Class-specific
                 bounding box deltas.
         window: (y1, x1, y2, x2) in image coordinates. The part of the image
             that contains the image excluding the padding.
@@ -792,7 +792,7 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
     Returns:
         rpn_logits: [batch, H, W, 2] Anchor classifier logits (before softmax)
         rpn_probs: [batch, W, W, 2] Anchor classifier probabilities.
-        rpn_bbox: [batch, H, W, (dy, dx, log(dh), log(dw))] Deltas to be
+        rpn_bbox: [batch, H, W, (dy, dx, train_log(dh), train_log(dw))] Deltas to be
                   applied to anchors.
     """
     # TODO: check if stride of 2 causes alignment issues if the featuremap
@@ -815,7 +815,7 @@ def rpn_graph(feature_map, anchors_per_location, anchor_stride):
         "softmax", name="rpn_class_xxx")(rpn_class_logits)
 
     # Bounding box refinement. [batch, H, W, anchors per location, depth]
-    # where depth is [x, y, log(w), log(h)]
+    # where depth is [x, y, train_log(w), train_log(h)]
     x = KL.Conv2D(anchors_per_location * 4, (1, 1), padding="valid",
                   activation='linear', name='rpn_bbox_pred')(shared)
 
@@ -838,7 +838,7 @@ def build_rpn_model(anchor_stride, anchors_per_location, depth):
     Returns a Keras Model object. The model outputs, when called, are:
     rpn_logits: [batch, H, W, 2] Anchor classifier logits (before softmax)
     rpn_probs: [batch, W, W, 2] Anchor classifier probabilities.
-    rpn_bbox: [batch, H, W, (dy, dx, log(dh), log(dw))] Deltas to be
+    rpn_bbox: [batch, H, W, (dy, dx, train_log(dh), train_log(dw))] Deltas to be
                 applied to anchors.
     """
     input_feature_map = KL.Input(shape=[None, None, depth],
@@ -867,7 +867,7 @@ def fpn_classifier_graph(rois, feature_maps,
     Returns:
         logits: [N, NUM_CLASSES] classifier logits (before softmax)
         probs: [N, NUM_CLASSES] classifier probabilities
-        bbox_deltas: [N, (dy, dx, log(dh), log(dw))] Deltas to apply to
+        bbox_deltas: [N, (dy, dx, train_log(dh), train_log(dw))] Deltas to apply to
                      proposal boxes
     """
     # ROI Pooling
@@ -895,10 +895,10 @@ def fpn_classifier_graph(rois, feature_maps,
                                      name="mrcnn_class")(mrcnn_class_logits)
 
     # BBox head
-    # [batch, boxes, num_classes * (dy, dx, log(dh), log(dw))]
+    # [batch, boxes, num_classes * (dy, dx, train_log(dh), train_log(dw))]
     x = KL.TimeDistributed(KL.Dense(num_classes * 4, activation='linear'),
                            name='mrcnn_bbox_fc')(shared)
-    # Reshape to [batch, boxes, num_classes, (dy, dx, log(dh), log(dw))]
+    # Reshape to [batch, boxes, num_classes, (dy, dx, train_log(dh), train_log(dw))]
     s = K.int_shape(x)
     mrcnn_bbox = KL.Reshape((s[1], num_classes, 4), name="mrcnn_bbox")(x)
 
@@ -999,11 +999,11 @@ def rpn_bbox_loss_graph(config, target_bbox, rpn_match, rpn_bbox):
     """Return the RPN bounding box loss graph.
 
     config: the model config object.
-    target_bbox: [batch, max positive anchors, (dy, dx, log(dh), log(dw))].
+    target_bbox: [batch, max positive anchors, (dy, dx, train_log(dh), train_log(dw))].
         Uses 0 padding to fill in unsed bbox deltas.
     rpn_match: [batch, anchors, 1]. Anchor match type. 1=positive,
                -1=negative, 0=neutral anchor.
-    rpn_bbox: [batch, anchors, (dy, dx, log(dh), log(dw))]
+    rpn_bbox: [batch, anchors, (dy, dx, train_log(dh), train_log(dw))]
     """
     # Positive anchors contribute to the loss, but negative and
     # neutral anchors (match value of 0 or -1) don't.
@@ -1064,9 +1064,9 @@ def mrcnn_class_loss_graph(target_class_ids, pred_class_logits,
 def mrcnn_bbox_loss_graph(target_bbox, target_class_ids, pred_bbox):
     """Loss for Mask R-CNN bounding box refinement.
 
-    target_bbox: [batch, num_rois, (dy, dx, log(dh), log(dw))]
+    target_bbox: [batch, num_rois, (dy, dx, train_log(dh), train_log(dw))]
     target_class_ids: [batch, num_rois]. Integer class IDs.
-    pred_bbox: [batch, num_rois, num_classes, (dy, dx, log(dh), log(dw))]
+    pred_bbox: [batch, num_rois, num_classes, (dy, dx, train_log(dh), train_log(dw))]
     """
     # Reshape to merge batch and roi dimensions for simplicity.
     target_class_ids = K.reshape(target_class_ids, (-1,))
@@ -1212,7 +1212,7 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     Returns:
     rois: [TRAIN_ROIS_PER_IMAGE, (y1, x1, y2, x2)]
     class_ids: [TRAIN_ROIS_PER_IMAGE]. Integer class IDs.
-    bboxes: [TRAIN_ROIS_PER_IMAGE, NUM_CLASSES, (y, x, log(h), log(w))]. Class-specific
+    bboxes: [TRAIN_ROIS_PER_IMAGE, NUM_CLASSES, (y, x, train_log(h), train_log(w))]. Class-specific
             bbox refinments.
     masks: [TRAIN_ROIS_PER_IMAGE, height, width, NUM_CLASSES). Class specific masks cropped
            to bbox boundaries and resized to neural network output size.
@@ -1313,7 +1313,7 @@ def build_detection_targets(rpn_rois, gt_class_ids, gt_boxes, gt_masks, config):
     roi_gt_class_ids = rpn_roi_gt_class_ids[keep]
     roi_gt_assignment = rpn_roi_iou_argmax[keep]
 
-    # Class-aware bbox deltas. [y, x, log(h), log(w)]
+    # Class-aware bbox deltas. [y, x, train_log(h), train_log(w)]
     bboxes = np.zeros((config.TRAIN_ROIS_PER_IMAGE,
                        config.NUM_CLASSES, 4), dtype=np.float32)
     pos_ids = np.where(roi_gt_class_ids > 0)[0]
@@ -1366,11 +1366,11 @@ def build_rpn_targets(image_shape, anchors, gt_class_ids, gt_boxes, config):
     Returns:
     rpn_match: [N] (int32) matches between anchors and GT boxes.
                1 = positive anchor, -1 = negative anchor, 0 = neutral
-    rpn_bbox: [N, (dy, dx, log(dh), log(dw))] Anchor bbox deltas.
+    rpn_bbox: [N, (dy, dx, train_log(dh), train_log(dw))] Anchor bbox deltas.
     """
     # RPN Match: 1 = positive anchor, -1 = negative anchor, 0 = neutral
     rpn_match = np.zeros([anchors.shape[0]], dtype=np.int32)
-    # RPN bounding boxes: [max anchors per image, (dy, dx, log(dh), log(dw))]
+    # RPN bounding boxes: [max anchors per image, (dy, dx, train_log(dh), train_log(dw))]
     rpn_bbox = np.zeros((config.RPN_TRAIN_ANCHORS_PER_IMAGE, 4))
 
     # Handle COCO crowds
@@ -1565,7 +1565,7 @@ def data_generator(dataset, config, shuffle=True, augment=True, random_rois=0,
     - images: [batch, H, W, C]
     - image_meta: [batch, size of image meta]
     - rpn_match: [batch, N] Integer (1=positive anchor, -1=negative, 0=neutral)
-    - rpn_bbox: [batch, N, (dy, dx, log(dh), log(dw))] Anchor bbox deltas.
+    - rpn_bbox: [batch, N, (dy, dx, train_log(dh), train_log(dw))] Anchor bbox deltas.
     - gt_class_ids: [batch, MAX_GT_INSTANCES] Integer class IDs
     - gt_boxes: [batch, MAX_GT_INSTANCES, (y1, x1, y2, x2)]
     - gt_masks: [batch, height, width, MAX_GT_INSTANCES]. The height and width
@@ -2102,11 +2102,11 @@ class MaskRCNN():
                                             layer.__class__.__name__))
 
     def set_log_dir(self, model_path=None):
-        """Sets the model log directory and epoch counter.
+        """Sets the model train_log directory and epoch counter.
 
         model_path: If None, or a format different from what this code uses
-            then set a new log directory and start epochs from 0. Otherwise,
-            extract the log directory and the epoch counter from the file
+            then set a new train_log directory and start epochs from 0. Otherwise,
+            extract the train_log directory and the epoch counter from the file
             name.
         """
         # Set date and epoch counter as if starting a new model

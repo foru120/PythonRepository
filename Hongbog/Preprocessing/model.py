@@ -6,7 +6,7 @@ class Model:
     def __init__(self, sess, depth):
         self.sess = sess
         self.N = int((depth - 4) / 3)  # layer 개수
-        self.growthRate = 12  # k
+        self.growthRate = 15  # k
         self.compression_factor = 0.5
         self._build_graph()
 
@@ -92,7 +92,7 @@ class Model:
             l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
             l = tf.nn.elu(l, 'output')
             l = avg_pool2d(inputs=l, kernel_size=[4, 4], stride=1, padding='VALID')
-            l = tf.reshape(l, shape=[-1, 1 * 1 * 256])
+            l = tf.reshape(l, shape=[-1, 1 * 1 * 319])  # k=12, shape=(-1,256)
             # l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
             logits = fully_connected(inputs=l, num_outputs=2, activation_fn=None,
                                      weights_initializer=variance_scaling_initializer(), weights_regularizer=l2_regularizer(1e-3))
@@ -101,7 +101,7 @@ class Model:
 
         self.logits = dense_net()
         self.prob = tf.nn.softmax(logits=self.logits, name='output')
-        loss = self._focal_loss()
+        loss = self._focal_loss(alpha=0.1)
         # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y)
         # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
         self.loss = tf.add_n([loss] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')

@@ -94,7 +94,7 @@ with tf.Session() as sess:
             best_loss_val = validation_loss
             check_since_last_progress = 0
             best_model_params = get_model_params()
-            saver.save(sess, 'log/mobilenet_cifar10_v1.ckpt')
+            saver.save(sess, 'train_log/mobilenet_cifar10_v1.ckpt')
         else:
             check_since_last_progress += 1
 
@@ -145,7 +145,7 @@ def restore_and_test():
 
         sess.run(tf.global_variables_initializer())
         saver = tf.train.Saver()
-        saver.restore(sess, 'log/mobilenet_cifar10_v1.ckpt')
+        saver.restore(sess, 'train_log/mobilenet_cifar10_v1.ckpt')
 
         print('Testing Started!')
 
