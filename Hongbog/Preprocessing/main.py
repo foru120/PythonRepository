@@ -4,6 +4,7 @@ import os
 import time
 from collections import deque
 import cx_Oracle
+import datetime
 
 from PIL import Image
 from PIL import ImageGrab
@@ -47,6 +48,7 @@ class Neuralnet:
 
             if save_type == 'db':
                 self._init_database()
+                self._get_max_log_num()
 
     def _flag_setting(self):
         '''
@@ -63,7 +65,33 @@ class Neuralnet:
         flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_2018_02_12.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
+        '''
+        데이터베이스 연결을 수행하는 함수
+        :return: None
+        '''
         self._conn = cx_Oracle.connect('hongbog/hongbog0102@localhost:1521/orcl')
+
+    def _get_cursor(self):
+        '''
+        데이터베이스 커서를 생성하는 함수
+        :return: 데이터베이스 커서, type -> cursor
+        '''
+        return self._conn.cursor()
+
+    def _close_cursor(self, cur):
+        '''
+        데이터베이스 커서를 닫는 함수
+        :param cur: 닫을 커서
+        :return: None
+        '''
+        cur.close()
+
+    def _close_conn(self):
+        '''
+        데이터베이스 연결을 해제하는 함수
+        :return: None
+        '''
+        self._conn.close()
 
     def _data_loading(self):
         '''
@@ -129,6 +157,16 @@ class Neuralnet:
         with open(self._FLAGS.mon_data_log_path, 'a') as f:
             f.write(','.join([str(train_acc_mon), str(valid_acc_mon), str(train_loss_mon), str(valid_loss_mon)]) + '\n')
 
+    def _get_max_log_num(self):
+        '''
+        현재 로깅된 최대 로그 숫자를 DB 에서 가져오는 함수
+        :return: None
+        '''
+        cur = self._get_cursor()
+        cur.execute('select nvl(max(log_num), 0) max_log_num from train_log;')
+        self._max_log_num = cur.fetchone()
+        self._close_cursor(cur)
+
     def _mon_data_to_db(self, train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time):
         '''
         모니터링 대상(훈련 정확도, 훈련 손실 값, 검증 정확도, 검증 손실 값) DB로 저장
@@ -138,7 +176,11 @@ class Neuralnet:
         :param valid_loss_mon: 검증 손실 값
         :return: None
         '''
-
+        cur = self._get_cursor()
+        cur.execute('insert into train_log values(?, ?, ?, ?, ?, ?, ?)', (self._max_log_num+1, datetime.date.today().strftime('%Y-%m-%d %H:%M:%S'),
+                                                                          train_time, train_acc_mon, valid_acc_mon, train_loss_mon, valid_loss_mon))
+        self._conn.commit()
+        self._close_cursor(cur)
 
     def train(self):
         '''
@@ -234,6 +276,8 @@ class Neuralnet:
             test_acc_list.append(a)
 
         print('test accuracy:', np.mean(np.array(test_acc_list)))
+
+        self._close_conn()
 
     def _create_patch_image(self, img_path):
         '''
