@@ -62,7 +62,7 @@ class Neuralnet:
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
         flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/train_log/0004/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
-        flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_2018_02_12.txt', '훈련시 모니터링 데이터 저장 경로')
+        flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
         '''
@@ -163,8 +163,8 @@ class Neuralnet:
         :return: None
         '''
         cur = self._get_cursor()
-        cur.execute('select nvl(max(log_num), 0) max_log_num from train_log;')
-        self._max_log_num = cur.fetchone()
+        cur.execute('select nvl(max(log_num), 0) max_log_num from train_log')
+        self._max_log_num = cur.fetchone()[0]
         self._close_cursor(cur)
 
     def _mon_data_to_db(self, train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time):
@@ -177,8 +177,8 @@ class Neuralnet:
         :return: None
         '''
         cur = self._get_cursor()
-        cur.execute('insert into train_log values(?, ?, ?, ?, ?, ?, ?)', (self._max_log_num+1, datetime.date.today().strftime('%Y-%m-%d %H:%M:%S'),
-                                                                          train_time, train_acc_mon, valid_acc_mon, train_loss_mon, valid_loss_mon))
+        cur.execute('insert into train_log values(:log_num, :log_time, :train_time, :train_acc, :valid_acc, :train_loss, :valid_loss)',
+                    [self._max_log_num+1, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), train_time, train_acc_mon, valid_acc_mon, train_loss_mon, valid_loss_mon])
         self._conn.commit()
         self._close_cursor(cur)
 

@@ -19,7 +19,7 @@ class Model:
             self.learning_rate = tf.get_variable('learning_rate', initializer=0.1, trainable=False)
             self.regularizer = l2_regularizer(1e-3)
 
-        def conv(l, kernel, channel, stride):
+        def _conv(l, kernel, channel, stride):
             return conv2d(inputs=l, num_outputs=channel, kernel_size=kernel, stride=stride, padding='SAME', activation_fn=None,
                           weights_initializer=variance_scaling_initializer(), biases_initializer=None, weights_regularizer=self.regularizer)
 
@@ -42,52 +42,52 @@ class Model:
                     layer = batch_norm(inputs=layer, scope='pw_batch_norm')
             return layer
 
-        def add_layer(name, l):
+        def _add_layer(name, l):
             with tf.variable_scope(name):
                 '''bottleneck layer (DenseNet-B)'''
                 c = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
                 c = tf.nn.elu(c, 'bottleneck')
-                c = conv(c, 1, 4 * self.growthRate, 1)  # 4k, output
+                c = _conv(c, 1, 4 * self.growthRate, 1)  # 4k, output
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
                 '''basic dense layer'''
                 c = batch_norm(inputs=c, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
                 c = tf.nn.elu(c, 'basic_1')
                 c = _depthwise_separable_conv(c, [3, 3], self.growthRate)
-                # c = conv(c, 3, self.growthRate, 1)  # k, output
+                # c = _conv(c, 3, self.growthRate, 1)  # k, output
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
                 l = tf.concat([c, l], axis=3)
             return l
 
-        def add_transition(name, l):
+        def _add_transition(name, l):
             shape = l.get_shape().as_list()
             in_channel = shape[3]
             with tf.variable_scope(name):
                 '''compression transition layer (DenseNet-C)'''
                 l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
                 l = tf.nn.elu(l, 'transition')
-                l = conv(l, 1, int(in_channel * self.compression_factor), 1)
+                l = _conv(l, 1, int(in_channel * self.compression_factor), 1)
                 l = avg_pool2d(inputs=l, kernel_size=[2, 2], stride=2, padding='SAME')
                 l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
             return l
 
         def dense_net():
-            l = conv(self.X, 5, 16, 1)
+            l = _conv(self.X, 5, 16, 1)
 
             with tf.variable_scope('dense_block1'):
                 for i in range(self.N):
-                    l = add_layer('dense_layer_{}'.format(i), l)
-                l = add_transition('transition1', l)
+                    l = _add_layer('dense_layer_{}'.format(i), l)
+                l = _add_transition('transition1', l)
 
             with tf.variable_scope('dense_block2'):
                 for i in range(self.N):
-                    l = add_layer('dense_layer_{}'.format(i), l)
-                l = add_transition('transition2', l)
+                    l = _add_layer('dense_layer_{}'.format(i), l)
+                l = _add_transition('transition2', l)
 
             with tf.variable_scope('dense_block3'):
                 for i in range(self.N):
-                    l = add_layer('dense_layer_{}'.format(i), l)
+                    l = _add_layer('dense_layer_{}'.format(i), l)
 
             l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
             l = tf.nn.elu(l, 'output')
@@ -106,7 +106,7 @@ class Model:
         # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
         self.loss = tf.add_n([loss] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
         self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
-        self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), self.y), dtype=tf.float32))
+        self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), self.y), dtype=tf.float64))
 
     def predict(self, x_test):
         return self.sess.run(self.prob, feed_dict={self.X: x_test, self.training: False, self.dropout_rate: 1.0})
@@ -122,7 +122,7 @@ class Model:
 
     def _focal_loss(self, alpha=0.25, gamma=2):
         zeros = array_ops.zeros_like(self.prob, dtype=self.prob.dtype)
-        onehot_y = tf.one_hot(indices=self.y, depth=2)
+        onehot_y = tf.one_hot(indices=self.y, depth=2, dtype=tf.float32)
         pos_p_sub = array_ops.where(onehot_y >= self.prob, onehot_y - self.prob, zeros)
         neg_p_sub = array_ops.where(onehot_y > zeros, zeros, self.prob)
         per_entry_cross_ent = - alpha * (pos_p_sub ** gamma) * tf.log(tf.clip_by_value(self.prob, 1e-8, 1.0)) \

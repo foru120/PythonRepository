@@ -1,29 +1,9 @@
-# import tensorflow as tf
-# from tensorflow.python.ops import array_ops
-# import numpy as np
-#
-# alpha = 0.25
-# gamma = 2
-# prob = np.array([[0.7, 0.3], [0.4, 0.6]])
-# y = np.array([0, 1])
-#
-# with tf.Session() as sess:
-#     sess.run(tf.global_variables_initializer())
-#
-#     zeros = array_ops.zeros_like(prob, dtype=tf.float32)
-#     onehot_y = tf.one_hot(indices=y, depth=2)
-#     pos_p_sub = array_ops.where(onehot_y >= prob, onehot_y - prob, zeros)
-#     neg_p_sub = array_ops.where(onehot_y > zeros, zeros, prob)
-#     per_entry_cross_ent = - alpha * (pos_p_sub ** gamma) * tf.log(tf.clip_by_value(prob, 1e-8, 1.0)) \
-#                           - (1 - alpha) * (neg_p_sub ** gamma) * tf.log(tf.clip_by_value(1.0 - prob, 1e-8, 1.0))
-#
-#     print(sess.run([pos_p_sub]))
-#     print(sess.run([neg_p_sub]))
-
 import matplotlib.animation as anim
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from collections import deque
+import cx_Oracle
+import datetime
 
 class Monitoring:
     train_acc_list = deque(maxlen=100)
@@ -36,6 +16,7 @@ class Monitoring:
 
         if load_type == 'db':
             self._init_database()
+            self._get_max_log_num()
 
         f = plt.figure(figsize=(10, 8))
 
@@ -97,27 +78,34 @@ class Monitoring:
         :return: None
         '''
         cur = self._get_cursor()
-        cur.execute('select nvl(max(log_num), 0) max_log_num from train_log;')
-        self._max_log_num = cur.fetchone()
+        cur.execute('select nvl(max(log_num), 0) max_log_num from train_log')
+        self._max_log_num = cur.fetchone()[0]
         self._close_cursor(cur)
 
-    def _mod_data_from_db(self):
+    def _mon_data_from_db(self):
         cur = self._get_cursor()
-        cur.execute('select train_acc, valid_acc, train_loss, valid_loss from train_log where log_num = ? order by log_time', (self._max_log_num+1, ))
-        log_data = cur.fetchall()
+        cur.execute('select train_acc, valid_acc, train_loss, valid_loss from train_log where log_num = :log_num order by log_time', [self._max_log_num+1])
 
-    def update(self, f):
-        self._mon_data_from_file()
-        self.a1.set_data([epoch for epoch in range(1, len(self.train_acc_list)+1)], self.train_acc_list)
-        self.a2.set_data([epoch for epoch in range(1, len(self.valid_acc_list)+1)], self.valid_acc_list)
-        self.l1.set_data([epoch for epoch in range(1, len(self.train_loss_list)+1)], self.train_loss_list)
-        self.l2.set_data([epoch for epoch in range(1, len(self.valid_loss_list)+1)], self.valid_loss_list)
+        mon_log = []
+        for train_acc, valid_acc, train_loss, valid_loss in cur.fetchall():
+            mon_log.append([train_acc, valid_acc, train_loss, valid_loss])
+
+        mon_log_cnt = len(mon_log)
+        cur_mon_cnt = len(self.train_acc_list)
+
+        if (cur_mon_cnt == 0) or (mon_log_cnt > cur_mon_cnt):
+            for log in mon_log[cur_mon_cnt:]:
+                train_acc_mon, valid_acc_mon, train_loss_mon, valid_loss_mon = log
+                self.train_acc_list.append(float(train_acc_mon) * 100)
+                self.train_loss_list.append(float(train_loss_mon))
+                self.valid_acc_list.append(float(valid_acc_mon) * 100)
+                self.valid_loss_list.append(float(valid_loss_mon))
 
     def _mon_data_from_file(self):
         try:
             mon_log = []
 
-            with open('D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_2018_02_12.txt', 'r') as f:
+            with open('D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') +'.txt', 'r') as f:
                 mon_log = [log for log in f]
 
             mon_log_cnt = len(mon_log)
@@ -132,5 +120,15 @@ class Monitoring:
                     self.valid_loss_list.append(float(valid_loss_mon))
         except FileNotFoundError as e:
             print(e)
+
+    def update(self, f):
+        if self.load_type == 'file':
+            self._mon_data_from_file()
+        else:
+            self._mon_data_from_db()
+        self.a1.set_data([epoch for epoch in range(1, len(self.train_acc_list)+1)], self.train_acc_list)
+        self.a2.set_data([epoch for epoch in range(1, len(self.valid_acc_list)+1)], self.valid_acc_list)
+        self.l1.set_data([epoch for epoch in range(1, len(self.train_loss_list)+1)], self.train_loss_list)
+        self.l2.set_data([epoch for epoch in range(1, len(self.valid_loss_list)+1)], self.valid_loss_list)
 
 mon = Monitoring(load_type='db')
