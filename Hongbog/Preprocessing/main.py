@@ -34,7 +34,7 @@ class Neuralnet:
     train_loss_mon = deque(maxlen=100)
     valid_loss_mon = deque(maxlen=100)
 
-    def __init__(self, is_train, save_type):
+    def __init__(self, is_train, save_type=None):
         self.save_type = save_type
         self._flag_setting()  # flag setting
 
@@ -44,7 +44,7 @@ class Neuralnet:
             self._data_loading()
             self._data_separation()
             etime = time.time()
-            print('Data loaded!!! - ' + str(etime - stime))
+            print('Data loaded!!! - ' + str(round(etime - stime)) + ' 초.')
 
             if save_type == 'db':
                 self._init_database()
@@ -61,7 +61,7 @@ class Neuralnet:
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/train_log/0004/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/train_log/0006/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
         flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
@@ -110,13 +110,14 @@ class Neuralnet:
 
     def _data_separation(self):
         '''
-        로딩된 전체 데이터에 대해 훈련 데이터, 테스트 데이터, 검증 데이터로 분리하는 함수
+        로딩된 전체 데이터에 대해 훈련 데이터, 테스트 데이터, 검증 데이터로 분리하는 함수 (6:3:1 비율)
         :return: None
         '''
         train_end_idx, test_end_idx, valid_end_idx = int(self._tot_x.shape[0] * 0.6), int(self._tot_x.shape[0] * 0.9), int(self._tot_x.shape[0])
         self._train_x, self._train_y = self._tot_x[0:train_end_idx, ], self._tot_y[0:train_end_idx, ]
         self._test_x,  self._test_y  = self._tot_x[train_end_idx:test_end_idx, ], self._tot_y[train_end_idx:test_end_idx, ]
         self._valid_x, self._valid_y = self._tot_x[test_end_idx:, ], self._tot_y[test_end_idx:, ]
+        print('train :', str(len(self._train_x)), '개 , test :', str(len(self._test_x)), '개 , validation :', str(len(self._valid_x)), '개')
 
     def _get_model_params(self):
         '''
@@ -188,7 +189,7 @@ class Neuralnet:
         :return: None
         '''
         with tf.Session() as sess:
-            self._model = Model(sess, 40)
+            self._model = Model(sess)
 
             sess.run(tf.global_variables_initializer())
             self._saver = tf.train.Saver()
@@ -213,14 +214,14 @@ class Neuralnet:
                     if epoch+1 in (50, 75):  # dynamic learning rate
                         self._model.learning_rate = self._model.learning_rate/10
                     train_acc, train_loss, _ = self._model.train(train_x_batch.reshape(-1, 16, 16, 1), train_y_batch)
-                    tot_train_loss += train_loss / self._FLAGS.batch_size
+                    tot_train_loss += train_loss / len(train_x_batch)
                     train_acc_list.append(train_acc)
 
                 # 검증 부분
                 for idx in range(0, self._valid_x.shape[0], self._FLAGS.batch_size):
                     valid_x_batch, valid_y_batch = self._valid_x[idx:idx+self._FLAGS.batch_size, ], self._valid_y[idx:idx+self._FLAGS.batch_size, ]
-                    valid_loss, valid_acc = self._model.validation(valid_x_batch.reshape(-1, 16, 16, 1), valid_y_batch)
-                    tot_valid_loss += valid_loss / self._FLAGS.batch_size
+                    valid_acc, valid_loss = self._model.validation(valid_x_batch.reshape(-1, 16, 16, 1), valid_y_batch)
+                    tot_valid_loss += valid_loss / len(valid_x_batch)
                     valid_acc_list.append(valid_acc)
 
                 etime = time.time()
@@ -279,14 +280,13 @@ class Neuralnet:
 
         self._close_conn()
 
-    def _create_patch_image(self, img_path):
+    def _create_patch_image(self, ori_img):
         '''
         패치 사이즈 단위로 이미지 잘라내는 함수
-        :param img_path: 패치 단위로 분리할 이미지 경로
+        :param ori_img: 원본 이미지
         :return: 패치 단위로 분리된 이미지 데이터, type -> ndarray
         '''
-        img = Image.open(img_path)
-        x_pixel, y_pixel = img.size
+        x_pixel, y_pixel = ori_img.size
         x_delta, y_delta = int(x_pixel/40), int(y_pixel/30)
         patches_data = []
 
@@ -295,31 +295,58 @@ class Neuralnet:
                 img_data = []
                 for y in range(init_y, init_y + y_delta):
                     for x in range(init_x, init_x + x_delta):
-                        img_data.append(img.getpixel((x, y)))
+                        img_data.append(ori_img.getpixel((x, y)))
                 patches_data.append(img_data)
         return np.array(patches_data)
+
+    def _edge_output_on_the_image(self, ori_img, predict_edges):
+        '''
+        예측된 edge 들을 이미지 상에 표시하기 위한 함수
+        :param ori_img: 원본 이미지
+        :param predict_edges: 예측된 edge 들
+        :return: edge 가 표시된 이미지, type -> Image
+        '''
+        x_pixel, y_pixel = ori_img.size
+        x_delta, y_delta, img_cnt = int(x_pixel / 40), int(y_pixel / 30), 1
+        rgb_img = ori_img.convert('RGB')
+
+        for init_y in range(0, y_pixel, y_delta):
+            for init_x in range(0, x_pixel, x_delta):
+                if img_cnt in predict_edges:
+                    for y in range(init_y, init_y + y_delta):
+                        for x in range(init_x, init_x + x_delta):
+                            rgb_img.putpixel((x, y), (157, 195, 230))
+                img_cnt = img_cnt + 1
+
+        return rgb_img
 
     def predict(self, img_path):
         '''
         임의의 이미지에 대해 분류를 수행하는 함수
         :return: None
         '''
-        patches_data = self._create_patch_image(img_path)
+        ori_img = Image.open(img_path)
+        patches_data = self._create_patch_image(ori_img)
+        predict_edges = []
 
         tf.reset_default_graph()
 
         with tf.Session() as sess:
-            self._model = Model(sess, 40)
+            self._model = Model(sess)
 
             sess.run(tf.global_variables_initializer())
             self._saver = tf.train.Saver()
             self._saver.restore(sess, self._FLAGS.trained_param_path)
             logit = self._model.predict(patches_data.reshape(-1, 16, 16, 1))
-            print([idx for idx, value in enumerate(logit) if value[0] <= value[1]])
+            predict_edges = [idx for idx, value in enumerate(logit) if value[0] <= value[1]]
+            print(predict_edges)
+
+        predict_img = self._edge_output_on_the_image(ori_img, predict_edges)
+        predict_img.show()
 
 if __name__ == '__main__':
     neuralnet = Neuralnet(is_train=True, save_type='db')
     neuralnet.train()
 
     # neuralnet = Neuralnet(is_train=False)
-    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0029\\0029_000.bmp')
+    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0008\\0008_001.bmp')

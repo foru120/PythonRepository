@@ -145,3 +145,5 @@ def image_to_data():
             img_data = []
 
 image_to_data()
+
+# ground_truth_image_move()
