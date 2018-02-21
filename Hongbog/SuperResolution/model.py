@@ -103,7 +103,7 @@ class Model:
         # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
         self.loss = tf.add_n([self.mse] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
-        self.psnr = 20*math.log10(255.0/self.mse)
+        self.psnr = 20*math.log10(255.0/tf.sqrt(self.mse))
 
     def predict(self, x_test):
         return self.sess.run(self.prob, feed_dict={self.X: x_test, self.training: False})
