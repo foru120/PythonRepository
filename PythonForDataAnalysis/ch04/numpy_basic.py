@@ -301,3 +301,66 @@ np.maximum(x, y)
 '''
 arr = np.random.randn(7) * 5
 np.modf(arr)
+
+#todo 4.3 배열을 사용한 데이터 처리
+'''
+    Numpy 배열을 사용하면 반복문을 작성하지 않고 간결한 배열연산을 통해 많은 종류의 데이터 처리 작업을 할 수 있다.
+    배열연산을 사용해서 반복문을 명시적으로 제거하는 기법을 흔히 벡터화라고 부르는데, 일반적으로 벡터화된 배열에 대한
+    산술연산은 순수 파이썬 연산에 비해 2~3배에서 많게는 수십, 수백 배까지 빠르다.
+'''
+'''
+    np.meshgrid 함수는 2개의 1차원 배열을 받아 가능한 한 모든 (x, y) 짝을 만들 수 있는 2차원 배열 2개를 반환한다.
+'''
+import numpy as np
+points = np.arange(-5, 5, 0.01)
+xs, ys = np.meshgrid(points, points)
+xs
+ys
+'''
+    이제 그리드 상의 두 포인트를 가지고 간단하게 계산을 적용할 수 있다.
+'''
+import matplotlib.pyplot as plt
+z = np.sqrt(xs ** 2 + ys ** 2)
+z
+plt.imshow(z, cmap=plt.cm.gray); plt.colorbar()
+plt.title('Image plot of $\sqrt{x^2 + y^2}$ for a grid of values')
+plt.show()
+
+#todo 4.3.1 배열연산으로 조건절 표현하기
+'''
+    numpy.where 함수는 'x if 조건 else y' 같은 삼항식의 벡터화된 버전이다. 다음과 같이 불리언 배열 하나와 값이 들어있는
+    2개의 배열이 있다고 하자.
+'''
+xarr = np.array([1.1, 1.2, 1.3, 1.4, 1.5])
+yarr = np.array([2.1, 2.2, 2.3, 2.4, 2.5])
+cond = np.array([True, False, True, True, False])
+'''
+    cond 의 값이 True 일 때, xarr 의 값이나 yarr 의 값을 취하고 싶다면 리스트 내포를 이용해서 다음처럼 작성할 수 있다.
+'''
+result = [(x if c else y) for x, y, c in zip(xarr, yarr, cond)]
+result
+'''
+    이 방법에는 몇 가지 문제, 즉 순수 파이썬으로 수행되기 때문에 큰 배열을 빠르게 처리하지 못한다는 것과 다차원 배열에서는
+    사용할 수 없다는 문제가 있다. 하지만 np.where 를 사용하면 아주 간결하게 작성할 수 있다.
+'''
+result = np.where(cond, xarr, yarr)
+result
+'''
+    np.where 의 두 번째와 세 번째 인자는 배열이 아니라도 괜찮다. 둘 중 하나 혹은 둘 다 스칼라 값이라도 동작한다.
+    데이터 분석에서 일반적인 where 의 사용은 다른 배열에 기반한 새로운 배열을 생성한다.
+'''
+arr = np.random.randn(4, 4)
+arr
+np.where(arr > 0, 2, -2)
+np.where(arr > 0, 2, arr)
+'''
+    where 에 넘긴 배열은 같은 크기의 배열이거나 스칼라 값일 수 있다.
+'''
+cond1 = np.array([True, False, False, True, True])
+cond2 = np.array([False, False, True, True, False])
+np.where(cond1 & cond2, 0, np.where(cond1, 1, np.where(cond2, 2, 3)))
+'''
+    불리언 값은 0이거나 1인 값만을 취하므로 가독성이 떨어지긴 해도 다음 코드처럼 산술연산만으로 표현하는 것도 가능하다.
+'''
+result = 1 * (cond1 & ~cond2) + 2 * (cond2 & ~cond1) + 3 * (~cond1 & ~cond2)
+result
