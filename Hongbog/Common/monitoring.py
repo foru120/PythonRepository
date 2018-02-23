@@ -105,7 +105,7 @@ class Monitoring:
         try:
             mon_log = []
 
-            with open('D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') +'.txt', 'r') as f:
+            with open('D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') +'.txt', 'r') as f:
                 mon_log = [log for log in f]
 
             mon_log_cnt = len(mon_log)

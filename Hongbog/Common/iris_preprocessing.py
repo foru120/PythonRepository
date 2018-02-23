@@ -3,9 +3,10 @@ import shutil
 from PIL import Image
 import re
 import numpy as np
+import cv2
 
-ORIGINAL_IMAGE_PATH = 'D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2'  # 분할 전 이미지 경로
-NEW_IMAGE_PATH = 'D:\\Data\\casia_preprocessing'  # 분할 후 이미지 경로
+ORIGINAL_IMAGE_PATH = 'D:\\Data\\casia_original\\non-cropped'  # 분할 전 이미지 경로
+NEW_IMAGE_PATH = 'D:\\Data\\casia_original\\cropped'  # 분할 후 이미지 경로
 GROUND_TRUTH_PATH = os.path.join(NEW_IMAGE_PATH, 'ground_truth.txt')  # ground truth 에 대한 이미지 번호 정보가 있는 파일 경로
 
 def get_file_path_list(root_path, path_list, mode):
@@ -13,7 +14,7 @@ def get_file_path_list(root_path, path_list, mode):
     특정 폴더 밑에 있는 파일 경로를 리스트화하는 함수 (os.walk() 참조)
     :param root_path: 파일이 포함된 상위 경로
     :param path_list: 파일의 경로 정보를 담을 리스트
-    :param mode: 'C' -> (Cropped) Cropped 된 이미지 폴더를 대상으로 파일 검출,  'E' -> (Edge), edge 와 non-edge 폴더를 대상으로 파일 검출
+    :param mode: 'F' -> (Full) 전체 이미지 폴더를 대상으로 파일 검출,  'E' -> (Edge), edge 와 non-edge 폴더를 대상으로 파일 검출
     :return: 이미지 경로, type -> list
     '''
     for leaf_path in os.listdir(root_path):
@@ -21,7 +22,7 @@ def get_file_path_list(root_path, path_list, mode):
         if os.path.isdir(full_path):
             path_list = get_file_path_list(full_path, path_list, mode)
         elif os.path.isfile(full_path):
-            if mode == 'C':
+            if mode == 'F':
                 path_list.append(full_path)
             elif mode == 'E':
                 if re.search('.*(edge)|(non-edge).*', full_path):
@@ -51,7 +52,7 @@ def create_patch_image(root_folder, branch_folder, file_name, ori_path):
     :return: None
     '''
     x_pixel, y_pixel = 640, 480  # x_pixel, y_pixel: 입력 이미지 x축, y축 픽셀 값
-    x_delta, y_delta, img_cnt = 16, 16, 1  # x_delta, y_delta: 이미지 x축, y축 분할 단위, img_cnt: 이미지 순번을 위한 변수
+    x_delta, y_delta, img_cnt = 64, 48, 1  # x_delta, y_delta: 이미지 x축, y축 분할 단위, img_cnt: 이미지 순번을 위한 변수
 
     ori_img = Image.open(ori_path)  # rgb_im = im.convert('RGB')
     width, height = ori_img.size
@@ -71,7 +72,8 @@ def start_image_patching():
     이미지 패치 관련 Main 함수
     :return: None
     '''
-    path_list = get_file_path_list(ORIGINAL_IMAGE_PATH, [], 'C')
+    path_list = get_file_path_list(ORIGINAL_IMAGE_PATH, [], 'F')
+
     for ori_path in path_list:
         root_folder, branch_folder, file_name = os.path.splitext(ori_path)[0].split(os.path.sep)[-3: ]
         if not os.path.isdir(os.path.join(NEW_IMAGE_PATH, root_folder, branch_folder, file_name)):
@@ -128,6 +130,7 @@ def image_to_data():
     :return: None
     '''
     img_data, cnt_per_file = [], 1200
+
     for img_path in get_file_path_list(NEW_IMAGE_PATH, [], 'E'):
         img_gray_values = image_gray_scale_extraction(img_path)
         if re.search('.*non-edge.*', img_path):  # edge 이미지가 아닐경우 label -> 0로 설정
@@ -144,6 +147,30 @@ def image_to_data():
                 data_to_file(img_data, max(file_names)+1)
             img_data = []
 
-image_to_data()
+def image_blurring():
+    asis_path = 'D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2'
+    tobe_path = 'D:\\Data\\casia_blurring\\non-cropped'
 
+    for img_path in get_file_path_list(asis_path, [], 'F'):
+        folder_name = re.match('\\\(.*)\\\(.*\.bmp)', img_path[img_path.index(asis_path)+len(asis_path):])
+        if folder_name is not None:
+            img = cv2.imread(img_path)
+            height, width = img.shape[:2]
+            if width == 640 and height == 480:
+                os.makedirs(os.path.join(tobe_path, folder_name[1]), exist_ok=True)
+                file_name, ext = os.path.splitext(folder_name[2])
+
+                blur_img = cv2.cvtColor(cv2.blur(img, (7, 7)), cv2.COLOR_BGR2GRAY)
+                gaussian_img = cv2.cvtColor(cv2.GaussianBlur(img, (7, 7), 1), cv2.COLOR_BGR2GRAY)
+                median_img = cv2.cvtColor(cv2.medianBlur(img, 7), cv2.COLOR_BGR2GRAY)
+                bilateral_img = cv2.cvtColor(cv2.bilateralFilter(img, 9, 75, 75), cv2.COLOR_BGR2GRAY)
+
+                cv2.imwrite(os.path.join(tobe_path, folder_name[1], file_name + '_blur' + ext), blur_img)
+                cv2.imwrite(os.path.join(tobe_path, folder_name[1], file_name + '_gaussian' + ext), gaussian_img)
+                cv2.imwrite(os.path.join(tobe_path, folder_name[1], file_name + '_median' + ext), median_img)
+                cv2.imwrite(os.path.join(tobe_path, folder_name[1], file_name + '_bilateral' + ext), bilateral_img)
+
+# image_blurring()
+# image_to_data()
 # ground_truth_image_move()
+start_image_patching()

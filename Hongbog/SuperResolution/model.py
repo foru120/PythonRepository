@@ -12,8 +12,8 @@ class Model:
 
     def _build_graph(self):
         with tf.name_scope('initialize_scope'):
-            self.X = tf.placeholder(dtype=tf.float32, shape=[None, 64, 64, 1], name='X_data')
-            self.y = tf.placeholder(dtype=tf.int64, shape=[None, 64, 64, 1], name='y_data')
+            self.X = tf.placeholder(dtype=tf.float32, shape=[None, 64, 48, 1], name='X_data')
+            self.y = tf.placeholder(dtype=tf.int64, shape=[None, 64, 48, 1], name='y_data')
             self.training = tf.placeholder(dtype=tf.bool, name='training')
             self.learning_rate = tf.get_variable('learning_rate', initializer=1e-5, trainable=False)
             self.regularizer = l2_regularizer(1e-3)

@@ -141,7 +141,7 @@ class Model:
 
     def _softx_func(self, x, name):
         with tf.variable_scope(name):
-            return (x / 1 - tf.exp(-x))
+            return (x / (1 - tf.exp(-x)))
 
     def _focal_loss(self, alpha=0.25, gamma=2):
         '''

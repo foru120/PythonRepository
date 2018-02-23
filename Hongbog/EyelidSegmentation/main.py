@@ -9,7 +9,7 @@ import datetime
 from PIL import Image
 from PIL import ImageGrab
 
-from Hongbog.Preprocessing.model import Model
+from Hongbog.EyelidSegmentation.model import Model
 
 class Neuralnet:
     '''신경망을 훈련하기 위한 클래스'''
@@ -61,8 +61,8 @@ class Neuralnet:
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/train_log/0006/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
-        flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/Preprocessing/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0006/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
         '''
@@ -99,6 +99,7 @@ class Neuralnet:
         :return: None
         '''
         tot_data = []
+
         for idx, file_name in enumerate(os.listdir(self._FLAGS.image_data_path)):
             data = np.loadtxt(os.path.join(self._FLAGS.image_data_path, file_name), delimiter=',')
             if idx == 0:
@@ -164,7 +165,7 @@ class Neuralnet:
         :return: None
         '''
         cur = self._get_cursor()
-        cur.execute('select nvl(max(log_num), 0) max_log_num from train_log')
+        cur.execute('select nvl(max(log_num), 0) max_log_num from eyelid_seg_log')
         self._max_log_num = cur.fetchone()[0]
         self._close_cursor(cur)
 
@@ -178,7 +179,7 @@ class Neuralnet:
         :return: None
         '''
         cur = self._get_cursor()
-        cur.execute('insert into train_log values(:log_num, :log_time, :train_time, :train_acc, :valid_acc, :train_loss, :valid_loss)',
+        cur.execute('insert into eyelid_seg_log values(:log_num, :log_time, :train_time, :train_acc, :valid_acc, :train_loss, :valid_loss)',
                     [self._max_log_num+1, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), train_time, train_acc_mon, valid_acc_mon, train_loss_mon, valid_loss_mon])
         self._conn.commit()
         self._close_cursor(cur)
@@ -345,8 +346,8 @@ class Neuralnet:
         predict_img.show()
 
 if __name__ == '__main__':
-    neuralnet = Neuralnet(is_train=True, save_type='db')
-    neuralnet.train()
+    # neuralnet = Neuralnet(is_train=True, save_type='db')
+    # neuralnet.train()
 
-    # neuralnet = Neuralnet(is_train=False)
-    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0008\\0008_001.bmp')
+    neuralnet = Neuralnet(is_train=False)
+    neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0030\\0030_001.bmp')
