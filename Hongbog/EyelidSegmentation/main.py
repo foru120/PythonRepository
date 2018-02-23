@@ -61,7 +61,7 @@ class Neuralnet:
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0006/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0007/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
         flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
@@ -98,7 +98,7 @@ class Neuralnet:
         최종 전처리된 데이터 값을 로딩하는 함수
         :return: None
         '''
-        tot_data = []
+        tot_data = None
 
         for idx, file_name in enumerate(os.listdir(self._FLAGS.image_data_path)):
             data = np.loadtxt(os.path.join(self._FLAGS.image_data_path, file_name), delimiter=',')
@@ -107,7 +107,7 @@ class Neuralnet:
             else:
                 tot_data = np.concatenate((tot_data, data), axis=0)
         np.random.shuffle(tot_data)
-        self._tot_x, self._tot_y = tot_data[:, 0:-1], tot_data[:, -1]
+        self._tot_x, self._tot_y = tot_data[:, 0:-1] / 255, tot_data[:, -1]
 
     def _data_separation(self):
         '''
@@ -338,7 +338,7 @@ class Neuralnet:
             sess.run(tf.global_variables_initializer())
             self._saver = tf.train.Saver()
             self._saver.restore(sess, self._FLAGS.trained_param_path)
-            logit = self._model.predict(patches_data.reshape(-1, 16, 16, 1))
+            logit = self._model.predict(patches_data.reshape(-1, 16, 16, 1) / 255)
             predict_edges = [idx for idx, value in enumerate(logit) if value[0] <= value[1]]
             print(predict_edges)
 
@@ -346,8 +346,8 @@ class Neuralnet:
         predict_img.show()
 
 if __name__ == '__main__':
-    # neuralnet = Neuralnet(is_train=True, save_type='db')
-    # neuralnet.train()
+    neuralnet = Neuralnet(is_train=True, save_type='db')
+    neuralnet.train()
 
-    neuralnet = Neuralnet(is_train=False)
-    neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0030\\0030_001.bmp')
+    # neuralnet = Neuralnet(is_train=False)
+    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0030\\0030_001.bmp')

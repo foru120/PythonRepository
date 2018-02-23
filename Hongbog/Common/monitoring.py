@@ -78,13 +78,13 @@ class Monitoring:
         :return: None
         '''
         cur = self._get_cursor()
-        cur.execute('select nvl(max(log_num), 0) max_log_num from train_log')
+        cur.execute('select nvl(max(log_num), 0) max_log_num from eyelid_seg_log')
         self._max_log_num = cur.fetchone()[0]
         self._close_cursor(cur)
 
     def _mon_data_from_db(self):
         cur = self._get_cursor()
-        cur.execute('select train_acc, valid_acc, train_loss, valid_loss from train_log where log_num = :log_num order by log_time', [self._max_log_num+1])
+        cur.execute('select train_acc, valid_acc, train_loss, valid_loss from eyelid_seg_log where log_num = :log_num order by log_time', [self._max_log_num+1])
 
         mon_log = []
         for train_acc, valid_acc, train_loss, valid_loss in cur.fetchall():

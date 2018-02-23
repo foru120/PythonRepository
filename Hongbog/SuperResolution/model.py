@@ -12,7 +12,7 @@ class Model:
 
     def _build_graph(self):
         with tf.name_scope('initialize_scope'):
-            self.X = tf.placeholder(dtype=tf.float32, shape=[None, 64, 48, 1], name='X_data')
+            self.X = tf.placeholder(dtype=tf.int64, shape=[None, 64, 48, 1], name='X_data')
             self.y = tf.placeholder(dtype=tf.int64, shape=[None, 64, 48, 1], name='y_data')
             self.training = tf.placeholder(dtype=tf.bool, name='training')
             self.learning_rate = tf.get_variable('learning_rate', initializer=1e-5, trainable=False)
@@ -98,7 +98,7 @@ class Model:
             return logits
 
         self.logits = dense_net()
-        self.prob = tf.nn.softmax(logits=self.logits, name='output')
+        # self.prob = tf.nn.softmax(logits=self.logits, name='output')
         self.mse = tf.losses.mean_squared_error(self.y, self.logits, scope='mean_square_error')
         # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
         self.loss = tf.add_n([self.mse] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
@@ -106,10 +106,13 @@ class Model:
         self.psnr = 20*math.log10(255.0/tf.sqrt(self.mse))
 
     def predict(self, x_test):
-        return self.sess.run(self.prob, feed_dict={self.X: x_test, self.training: False})
+        return self.sess.run(self.logits, feed_dict={self.X: x_test, self.training: False})
 
     def train(self, x_data, y_data):
         return self.sess.run([self.psnr, self.loss, self.optimizer], feed_dict={self.X: x_data, self.y: y_data,
                                                                                     self.training: True})
     def validation(self, x_test, y_test):
-        return self.sess.run([self.loss, self.psnr], feed_dict={self.X: x_test, self.y: y_test, self.training: False})
+        return self.sess.run([self.psnr, self.loss], feed_dict={self.X: x_test, self.y: y_test, self.training: False})
+
+    def get_psnr(self, x_test, y_test):
+        return self.sess.run(self.psnr, feed_dict={self.X: x_test, self.y: y_test, self.training: False})

@@ -6,7 +6,7 @@ import numpy as np
 import cv2
 
 ORIGINAL_IMAGE_PATH = 'D:\\Data\\casia_original\\non-cropped'  # 분할 전 이미지 경로
-NEW_IMAGE_PATH = 'D:\\Data\\casia_original\\cropped'  # 분할 후 이미지 경로
+NEW_IMAGE_PATH = 'D:\\Data\\casia_preprocessing'  # 분할 후 이미지 경로
 GROUND_TRUTH_PATH = os.path.join(NEW_IMAGE_PATH, 'ground_truth.txt')  # ground truth 에 대한 이미지 번호 정보가 있는 파일 경로
 
 def get_file_path_list(root_path, path_list, mode):
@@ -108,8 +108,8 @@ def image_gray_scale_extraction(img_path):
     img_data = []
     x_pixel, y_pixel = (16, 16)
     gray_img = Image.open(img_path).convert('L')  # RGB -> Image.open(img_path).convert('RGB')
-    for x in range(0, x_pixel):
-        for y in range(0, y_pixel):
+    for y in range(0, y_pixel):
+        for x in range(0, x_pixel):
             img_data.append(gray_img.getpixel((x, y)))
     return img_data
 
@@ -129,7 +129,7 @@ def image_to_data():
     만들어진 패치 크기 이미지의 Gray Scale 값을 파일로 저장하는 함수
     :return: None
     '''
-    img_data, cnt_per_file = [], 1200
+    img_data, cnt_per_file = [], 100
 
     for img_path in get_file_path_list(NEW_IMAGE_PATH, [], 'E'):
         img_gray_values = image_gray_scale_extraction(img_path)
@@ -147,30 +147,7 @@ def image_to_data():
                 data_to_file(img_data, max(file_names)+1)
             img_data = []
 
-def image_blurring():
-    asis_path = 'D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2'
-    tobe_path = 'D:\\Data\\casia_blurring\\non-cropped'
-
-    for img_path in get_file_path_list(asis_path, [], 'F'):
-        folder_name = re.match('\\\(.*)\\\(.*\.bmp)', img_path[img_path.index(asis_path)+len(asis_path):])
-        if folder_name is not None:
-            img = cv2.imread(img_path)
-            height, width = img.shape[:2]
-            if width == 640 and height == 480:
-                os.makedirs(os.path.join(tobe_path, folder_name[1]), exist_ok=True)
-                file_name, ext = os.path.splitext(folder_name[2])
-
-                blur_img = cv2.cvtColor(cv2.blur(img, (7, 7)), cv2.COLOR_BGR2GRAY)
-                gaussian_img = cv2.cvtColor(cv2.GaussianBlur(img, (7, 7), 1), cv2.COLOR_BGR2GRAY)
-                median_img = cv2.cvtColor(cv2.medianBlur(img, 7), cv2.COLOR_BGR2GRAY)
-                bilateral_img = cv2.cvtColor(cv2.bilateralFilter(img, 9, 75, 75), cv2.COLOR_BGR2GRAY)
-
-                cv2.imwrite(os.path.join(tobe_path, folder_name[1], file_name + '_blur' + ext), blur_img)
-                cv2.imwrite(os.path.join(tobe_path, folder_name[1], file_name + '_gaussian' + ext), gaussian_img)
-                cv2.imwrite(os.path.join(tobe_path, folder_name[1], file_name + '_median' + ext), median_img)
-                cv2.imwrite(os.path.join(tobe_path, folder_name[1], file_name + '_bilateral' + ext), bilateral_img)
-
-# image_blurring()
+image_to_data()
 # image_to_data()
 # ground_truth_image_move()
-start_image_patching()
+# start_image_patching()
