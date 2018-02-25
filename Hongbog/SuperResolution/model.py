@@ -1,19 +1,20 @@
 import tensorflow as tf
 from tensorflow.python.ops import array_ops
 from tensorflow.contrib.layers import *
+import math
 
 class Model:
     def __init__(self, sess):
         self.sess = sess
-        self.N = 12  # Dense Block 내의 Layer 개수
+        self.N = 10  # Dense Block 내의 Layer 개수
         self.growthRate = 24  # K
         self.compression_factor = 0.5
         self._build_graph()
 
     def _build_graph(self):
         with tf.name_scope('initialize_scope'):
-            self.X = tf.placeholder(dtype=tf.int64, shape=[None, 64, 48, 1], name='X_data')
-            self.y = tf.placeholder(dtype=tf.int64, shape=[None, 64, 48, 1], name='y_data')
+            self.X = tf.placeholder(dtype=tf.float32, shape=[None, 64, 48, 1], name='X_data')
+            self.y = tf.placeholder(dtype=tf.float64, shape=[None, 64, 48, 1], name='y_data')
             self.training = tf.placeholder(dtype=tf.bool, name='training')
             self.learning_rate = tf.get_variable('learning_rate', initializer=1e-5, trainable=False)
             self.regularizer = l2_regularizer(1e-3)
@@ -58,7 +59,7 @@ class Model:
                 c = _batch_norm(l, 'bottleneck_batch_norm')
                 c = tf.nn.elu(c, 'bottleneck')
                 # c = tf.nn.softplus(c, 'bottleneck')
-                c = _conv(c, 1, 4 * self.growthRate, 1)  # 4k, output
+                c = _conv(c, 1, 4 * self.growthRate, 1, 'bottleneck_conv')  # 4k, output
 
                 '''basic dense layer'''
                 c = _batch_norm(inputs=c, scope='basic_batch_norm')
@@ -66,7 +67,7 @@ class Model:
                 # c = tf.nn.softplus(c, 'basic_1')
 
                 # c = _depthwise_separable_conv(c, [3, 3], self.growthRate)
-                c = _conv(c, 3, self.growthRate, 1)  # k, output
+                c = _conv(c, 3, self.growthRate, 1, 'basic_conv')  # k, output
 
                 l = tf.concat([c, l], axis=3)
             return l
@@ -103,7 +104,7 @@ class Model:
         # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
         self.loss = tf.add_n([self.mse] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
-        self.psnr = 20*math.log10(255.0/tf.sqrt(self.mse))
+        self.psnr = 20 * tf.log(255 / tf.sqrt(self.mse))
 
     def predict(self, x_test):
         return self.sess.run(self.logits, feed_dict={self.X: x_test, self.training: False})

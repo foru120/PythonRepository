@@ -39,12 +39,9 @@ class Neuralnet:
         self._flag_setting()  # flag setting
 
         if is_train == True:  # data loading
-            print('Data load start!!!')
             stime = time.time()
-            self._data_loading()
-            self._data_separation()
+            self._file_separation()
             etime = time.time()
-            print('Data loaded!!! - ' + str(round(etime - stime)) + ' 초.')
 
             if save_type == 'db':
                 self._init_database()
@@ -57,12 +54,12 @@ class Neuralnet:
         '''
         flags = tf.app.flags
         self._FLAGS = flags.FLAGS
-        flags.DEFINE_string('blurring_image_path', 'D:\\Data\\casia_blurring\\image_data', '학습 이미지 데이터 경로')
+        flags.DEFINE_string('blurring_image_path', 'D:\\100_dataset\\casia_blurring\\image_data', '학습 이미지 데이터 경로')
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
-        flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
+        flags.DEFINE_integer('batch_size', 10, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/SuperResolution/train_log/0001/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
-        flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/SuperResolution/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/05_source/PythonRepository/Hongbog/SuperResolution/train_log/0001/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('mon_data_log_path', 'D:/05_source/PythonRepository/Hongbog/SuperResolution//mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
         '''
@@ -93,31 +90,23 @@ class Neuralnet:
         '''
         self._conn.close()
 
-    def _data_loading(self):
+    def _file_separation(self):
+        file_list = np.array(os.listdir(self._FLAGS.blurring_image_path))
+        rand_nums = np.random.permutation(len(file_list))
+        cnt = len(file_list)
+        self._tot_train_file = file_list[rand_nums[:int(cnt * 0.6)]]
+        self._tot_test_file = file_list[rand_nums[int(cnt * 0.6):int(cnt * 0.9)]]
+        self._tot_valid_file = file_list[rand_nums[int(cnt * 0.9):]]
+
+    def _data_loading(self, file_name):
         '''
         최종 전처리된 데이터 값을 로딩하는 함수
         :return: None
         '''
-        tot_data, image_size = [], 64 * 48
+        image_size = 64 * 48
 
-        for idx, file_name in enumerate(os.listdir(self._FLAGS.blurring_image_path)):
-            data = np.loadtxt(os.path.join(self._FLAGS.blurring_image_path, file_name), delimiter=',', dtype=np.int64)
-            tot_data.append(data.reshape((-1)).tolist())
-
-        tot_data = np.array(tot_data)
-        np.random.shuffle(tot_data)
-        self._tot_x, self._tot_y = tot_data[:, :image_size], tot_data[:, image_size:]
-
-    def _data_separation(self):
-        '''
-        로딩된 전체 데이터에 대해 훈련 데이터, 테스트 데이터, 검증 데이터로 분리하는 함수 (6:3:1 비율)
-        :return: None
-        '''
-        train_end_idx, test_end_idx, valid_end_idx = int(self._tot_x.shape[0] * 0.6), int(self._tot_x.shape[0] * 0.9), int(self._tot_x.shape[0])
-        self._train_x, self._train_y = self._tot_x[0:train_end_idx, ], self._tot_y[0:train_end_idx, ]
-        self._test_x,  self._test_y  = self._tot_x[train_end_idx:test_end_idx, ], self._tot_y[train_end_idx:test_end_idx, ]
-        self._valid_x, self._valid_y = self._tot_x[test_end_idx:, ], self._tot_y[test_end_idx:, ]
-        print('train :', str(len(self._train_x)), '개 , test :', str(len(self._test_x)), '개 , validation :', str(len(self._valid_x)), '개')
+        data = np.loadtxt(os.path.join(self._FLAGS.blurring_image_path, file_name), delimiter=',', dtype=np.float32)
+        return data[:, :image_size], data[:, image_size:]
 
     def _get_model_params(self):
         '''
@@ -209,20 +198,20 @@ class Neuralnet:
                 stime = time.time()
 
                 # 훈련 부분
-                for idx in range(0, self._train_x.shape[0], self._FLAGS.batch_size):
-                    train_x_batch, train_y_batch = self._train_x[idx:idx+self._FLAGS.batch_size, ], self._train_y[idx:idx+self._FLAGS.batch_size, ]
-                    # if epoch+1 in (50, 75):  # dynamic learning rate
-                    #     self._model.learning_rate = self._model.learning_rate/10
-                    train_psnr, train_loss, _ = self._model.train(train_x_batch.reshape(-1, 64, 48, 1), train_y_batch)
-                    tot_train_psnr += train_psnr / len(train_x_batch)
-                    tot_train_loss += train_loss / len(train_x_batch)
+                for train_file in self._tot_train_file:
+                    train_x, train_y = self._data_loading(train_file)
+                    for idx in range(0, 100, self._FLAGS.batch_size):
+                        train_psnr, train_loss, _ = self._model.train(train_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), train_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
+                        tot_train_psnr += train_psnr / self._FLAGS.batch_size
+                        tot_train_loss += train_loss / self._FLAGS.batch_size
 
                 # 검증 부분
-                for idx in range(0, self._valid_x.shape[0], self._FLAGS.batch_size):
-                    valid_x_batch, valid_y_batch = self._valid_x[idx:idx+self._FLAGS.batch_size, ], self._valid_y[idx:idx+self._FLAGS.batch_size, ]
-                    valid_psnr, valid_loss = self._model.validation(valid_x_batch.reshape(-1, 64, 48, 1), valid_y_batch)
-                    tot_valid_psnr += valid_psnr / len(valid_x_batch)
-                    tot_valid_loss += valid_loss / len(valid_x_batch)
+                for valid_file in self._tot_valid_file:
+                    valid_x, valid_y = self._data_loading(valid_file)
+                    for idx in range(0, 100, self._FLAGS.batch_size):
+                        valid_psnr, valid_loss = self._model.validation(valid_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), valid_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
+                        tot_valid_psnr += valid_psnr / self._FLAGS.batch_size
+                        tot_valid_loss += valid_loss / self._FLAGS.batch_size
 
                 etime = time.time()
 
@@ -231,6 +220,10 @@ class Neuralnet:
                 valid_psnr_mon = tot_valid_psnr
                 valid_loss_mon = tot_valid_loss
                 train_time = etime - stime
+
+                print('epoch:', epoch + 1, ', train psnr:', round(train_psnr_mon, 2), ', train loss:', round(train_loss_mon, 2),
+                      ', validation psnr:', round(valid_psnr_mon, 2), ', validation loss:', round(valid_loss_mon, 2), ', train time:',
+                      round(train_time, 2))
 
                 if self.save_type == 'file':
                     self._mon_data_to_file(train_psnr_mon, train_loss_mon, valid_psnr_mon, valid_loss_mon)
@@ -241,8 +234,6 @@ class Neuralnet:
                 self.train_loss_mon.append(train_loss_mon)
                 self.valid_acc_mon.append(valid_psnr_mon)
                 self.valid_loss_mon.append(valid_loss_mon)
-
-                print('epoch:', epoch+1, ', train psnr:', train_psnr_mon, ', train loss:', train_loss_mon, ', validation psnr:', valid_psnr_mon, ', validation loss:', valid_loss_mon, ', train time:', train_time)
 
                 # Early Stopping 조건 확인
                 if tot_valid_loss < best_loss_val:
@@ -271,10 +262,11 @@ class Neuralnet:
 
         tot_test_psnr = 0.
 
-        for idx in range(0, self._test_x.shape[0], self._FLAGS.batch_size):
-            test_x_batch, test_y_batch = self._test_x[idx:idx+self._FLAGS.batch_size, ], self._test_y[idx:idx+self._FLAGS.batch_size, ]
-            psnr = self._model.get_psnr(test_x_batch.reshape(-1, 64, 48, 1), test_y_batch)
-            tot_test_psnr = psnr / len(test_x_batch)
+        for test_file in self._tot_test_file:
+            test_x, test_y = self._data_loading(test_file)
+            for idx in range(0, 100, self._FLAGS.batch_size):
+                psnr = self._model.get_psnr(test_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), test_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
+                tot_test_psnr = psnr / self._FLAGS.batch_size
 
         print('test psnr:', tot_test_psnr)
 
