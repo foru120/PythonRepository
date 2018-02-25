@@ -364,3 +364,238 @@ np.where(cond1 & cond2, 0, np.where(cond1, 1, np.where(cond2, 2, 3)))
 '''
 result = 1 * (cond1 & ~cond2) + 2 * (cond2 & ~cond1) + 3 * (~cond1 & ~cond2)
 result
+
+#todo 4.3.2 수학 메서드와 통계 메서드
+import numpy as np
+arr = np.random.randn(5, 4)
+arr.mean()
+np.mean(arr)
+arr.sum()
+'''
+    mean 이나 sum 같은 함수는 선택적으로 axis 인자를 받아 해당 axis 에 대한 통계를 계산하고 한 차수 낮은 배열을 반환한다.
+'''
+arr.mean(axis=1)
+arr.sum(0)
+'''
+    cumsum 과 cumprod 메서드는 중간 계산 값을 담고 있는 배열을 반환한다.
+    지정된 축에 따라 누적된 결과 값을 보여준다.
+'''
+arr = np.array([[0, 1, 2], [3, 4, 5], [6, 7, 8]])
+arr.cumsum(0)
+arr.cumprod(1)
+
+#todo 4.3.3 불리언 배열을 위한 메서드
+'''
+    앞의 메서드에서 불리언 값은 1(True), 0(False) 으로 취급된다. 따라서 불리언 배열에 대한 sum 메서드를 실행하면 True 인
+    원소의 개수를 반환한다.
+'''
+arr = np.random.randn(100)
+(arr > 0).sum()
+'''
+    any, all 메서드는 불리언 배열에 사용할 때 특히 유용하다. any 메서드는 하나 이상의 True 값이 있는지 검사하고, all 
+    메서드는 모든 원소가 True 인지 검사한다.
+'''
+bools = np.array([False, False, True, False])
+bools.any()
+bools.all()
+'''
+    any(), all() 메서드는 불리언 배열이 아니어도 동작하며, 0 이 아닌 원소는 모두 True 로 간주한다.
+'''
+
+#todo 4.3.4 정렬
+'''
+    파이썬의 내장 리스트형처럼 NumPy 배열 역시 sort 메서드를 이용해서 정렬할 수 있다.
+'''
+arr = np.random.randn(8)
+arr
+arr.sort()
+arr
+'''
+    다차원 배열의 정렬은 sort 메서드에 넘긴 축의 값에 따라 1차원 부분을 정렬한다.
+'''
+arr = np.random.randn(5, 3)
+arr
+arr.sort(1)
+arr
+'''
+    np.sort 메서드는 배열을 직접 변경하지 않고 정렬된 결과를 가지고 복사본을 반환한다.
+    배열의 분위수를 구하는 쉽고 빠른 방법은 우선 배열을 정렬한 후에 특정 분위의 값을 선택하는 것이다.
+'''
+large_arr = np.random.randn(1000)
+large_arr.sort()
+large_arr[int(0.05 * len(large_arr))]  # 5% quantile
+
+#todo 4.3.5 집합 함수
+'''
+    NumPy 는 1차원 ndarray 를 위한 몇 가지 기본 집합연산을 제공한다. 아마도 가장 자주 사용되는 함수는 배열 내에서 중복된
+    원소를 제거하고 남은 원소를 정렬된 형태로 반환하는 np.unique 일 것이다.
+'''
+names = np.array(['Bob', 'Joe', 'Will', 'Bob', 'Will', 'Joe', 'Joe'])
+np.unique(names)
+ints = np.array([3, 3, 3, 2, 2, 1, 1, 4, 4])
+np.unique(ints)
+'''
+    np.unique 를 순수 파이썬으로만 구현하면 다음과 같다.
+'''
+sorted(set(ints))
+'''
+    np.in1d 함수는 2 개의 배열을 인자로 받아 첫 번째 배열의 각 원소가 두 번째 배열의 원소를 포함하는지를 나타내는 불리언
+    배열을 반환한다.
+'''
+values = np.array([6, 0, 0, 3, 2, 5, 6])
+np.in1d(values, [2, 3, 6])
+
+#todo 4.4 배열의 파일 입·출력
+'''
+    NumPy 는 디스크에서 텍스트나 바이너리 형식의 파일로부터 데이터를 불러오거나 저장할 수 있다.
+'''
+
+#todo 4.4.1 배열을 바이너리 형식으로 디스크에 저장하기
+'''
+    np.save 와 np.load 는 배열 데이터를 효과적으로 디스크에 저장하고 불러오는 함수다.
+    배열은 기본적으로 압축되지 않은 raw 바이너리 형식의 .npy 파일로 저장된다.
+'''
+arr = np.arange(10)
+np.save('some_array', arr)
+'''
+    저장되는 파일 경로가 .npy 로 끝나지 않으면 자동적으로 확장자를 추가한다.
+'''
+np.load('some_array')
+'''
+    np.savez 함수를 이용하면 여러 개의 배열을 압축된 형식으로 저장할 수 있는데, 저장하려는 배열은 키워드 인자 형태로 
+    전달된다.
+'''
+np.savez('array_archive.npz', a=arr, b=arr)
+'''
+    npz 파일을 불러올 때는 각각의 배열을 언제라도 불러올 수 있게 사전 형식의 객체에 저장한다.
+'''
+arch = np.load('array_archive.npz')
+arch['b']
+
+#todo 4.4.2 텍스트 파일 불러오기와 저장하기
+'''
+    np.loadtxt 함수는 구분자를 지정하거나 특정 칼럼에 대한 변환 함수를 지정하거나 로우를 건너뛰는 등의 다양한 기능을 
+    제공한다.
+'''
+arr = np.loadtxt('PythonForDataAnalysis\\ch04\\array_ex.txt', delimiter=',')
+arr
+'''
+    np.savetxt 는 앞에서 살펴본 np.loadtxt 와 반대로 배열을 파일로 저장한다.
+    genfromtxt 는 loadtxt 와 유사하지만 구조화된 배열과 누락된 데이터 처리를 위해 설계되었다.
+'''
+
+#todo 4.5 선형대수
+'''
+    행렬의 곱셈, 분할, 행렬식, 정사각 행렬 수학 같은 선형대수는 배열을 다루는 라이브러리에서 중요한 부분이다.
+    MATLAB 같은 다른 언어와 달리 2개의 2차원 배열을 * 연산자로 곱하는 건 행렬 곱셈이 아니라 대응하는 각각의 원소의 곱을
+    계산하는 것이다.
+    행렬 곱셈은 배열 메서드이자 numpy 네임스페이스 안에 있는 함수인 dot 함수를 사용해서 계산한다.
+'''
+x = np.array([[1., 2., 3.], [4., 5., 6.]])
+y = np.array([[6., 23.], [-1, 7], [8, 9]])
+x
+x.dot(y)
+'''
+    2 차원 배열과 곱셈이 가능한 크기의 1 차원 배열 간 행렬 곱셈의 결과는 1차원 배열이다.
+'''
+np.dot(x, np.ones(3))
+'''
+    numpy.linalg 는 행렬의 분할과 역행렬, 행렬식 같은 것을 포함하고 있다.
+    이는 MATLAB, R 같은 언어에서 사용하는 표준 포트란 라이브러리인 BLAS, LAPACK 또는 Intel MKL 를 사용해서 구현되었다.
+'''
+from numpy.linalg import inv, qr
+X = np.random.randn(5, 5)
+mat = X.T.dot(X)
+inv(mat)  # inv(inverse of a matrix): 정사각행렬의 역행렬을 계산
+mat.dot(inv(mat))
+q, r = qr(mat)  # qr(QR Factorization): 행렬 분해의 일종으로 임의의 행렬을 직교행렬과 상삼각행렬의 곱으로 분해하는 방법
+r
+
+#todo 4.6 난수 생성
+'''
+    numpy.random 모듈은 파이썬 내장 random 함수를 보강하여 다양한 종류의 확률분포로부터 효과적으로 표본 값을 생성하는 데
+    주로 사용된다.
+    예를 들어 normal 을 사용하여 표준정규분포로부터 4x4 크기의 표본을 생성할 수 있다.
+'''
+samples = np.random.normal(size=(4, 4))
+samples
+'''
+    이에 비해 파이썬 내장 random 모듈은 한 번에 하나의 값만 생성할 수 있다.
+    아래 성능 비교에서 알 수 있듯이 numpy.random 은 매우 큰 표본을 생성하는데 파이썬 내장 모듈보다 수십 배 이상 빠르다.
+'''
+from random import normalvariate
+N = 1000000
+# %timeit samples = [normalvariate(0, 1) for _ in range(N)]
+# %timeit np.random.normal(size=N)
+
+#todo 4.7 계단 오르내리기 예제
+'''
+    계단의 중간에서 같은 확률로 한 계단 올라가거나 내려간다고 가정하자.
+    순수 파이썬으로 내장 random 모듈을 사용하여 계단 오르내리기를 1,000 번 수행하는 코드는 다음처럼 작성할 수 있다.
+'''
+import random
+position = 0
+walk = [position]
+steps = 1000
+for i in range(steps):
+    step = 1 if random.randint(0, 1) else -1
+    position += step
+    walk.append(position)
+'''
+    np.random 모듈을 사용해서 1,000 번 수행한 결과 (1, -1) 를 한 번에 저장하고 누적 합을 계산한다.
+'''
+nsteps = 1000
+draws = np.random.randint(0, 2, size=nsteps)
+steps = np.where(draws > 0, 1, -1)
+walk = steps.cumsum()
+'''
+    계단을 오르내린 위치의 최소/최대 값 같은 간단한 통계를 구할 수 있다.
+'''
+walk.min()
+walk.max()
+'''
+    계단에서 특정 위치에 도달하기까지의 시간 같은 좀 더 복잡한 통계를 구할 수 있는데, 계단의 처음 위치에서 최초로 10 칸
+    떨어지기까지 얼마나 걸렸는지 확인해보자.
+    np.abs(walk) >= 10 을 통해 처음 위치에서 10 칸 이상 떨어진 시점을 알려주는 불리언 배열을 얻을 수 있다.
+    우리는 최초의 10 혹은 -10 인 시점을 구해야 하므로 불리언 배열에서 최대 값의 처음 색인을 반환하는 argmax 를 사용하자.
+'''
+(np.abs(walk) > 10).argmax()
+'''
+    여기서 argmax 를 사용하긴 했지만 argmax 는 배열 전체를 모두 확인하기 때문에 효과적인 방법은 아니다.
+    또한 이 예제에서는 True 가 최대 값임을 이미 알고 있었다.
+'''
+
+#todo 4.7.1 한 번에 계단 오르내리기 시뮬레이션하기
+'''
+    numpy.random 함수에 크기가 2 인 튜플을 넘기면 2 차원 배열이 생성되고 각 칼럼에서 누적 합을 구해 5,000 회의 시뮬레이션을
+    한 번에 처리할 수 있다.
+'''
+nwalks = 5000
+nsteps = 1000
+draws = np.random.randint(0, 2, size=(nwalks, nsteps))
+steps = np.where(draws > 0, 1, -1)
+walks = steps.cumsum(axis=1)
+walks
+'''
+    모든 시뮬레이션에 대해 최대 값과 최소 값을 구해보자.
+'''
+walks.max(axis=1)
+walks.min(axis=1)
+'''
+    이 데이터에서 누적 합이 30 혹은 -30 이 되는 최소 시점을 계산해보자.
+    5,000 회의 시뮬레이션 중 모든 경우가 30 에 도달하지 않아 계산이 약간 까다롭긴 하지만 any 메서드를 사용해서 해결할 수 있다.
+'''
+hits30 = (np.abs(walks) >= 30).any(1)
+hits30
+hits30.sum()
+'''
+    이 불리언 배열을 사용해 walks 에서 칼럼을 선택하고 절대 값이 30 이 넘는 경우에 대해 축 1 의 argmax 값을 구하면 처음
+    위치에서 30 칸 이상 멀어지는 최소 횟수를 구할 수 있다.
+'''
+crossing_times = (np.abs(walks) >= 30).argmax(1)
+crossing_times.mean()
+'''
+    다른 분포를 사용해서도 여러 가지 시도를 해보자.
+    normal 함수에 표준편차와 평균 값을 넣어 정규분포에서 표본을 추출하는 것처럼 그냥 다른 난수 발생 함수를 사용하기만 하면 된다.
+'''
+steps = np.random.normal(loc=0, scale=0.25, size=(nwalks, nsteps))
