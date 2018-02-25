@@ -61,7 +61,7 @@ class Neuralnet:
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0007/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0010/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
         flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
