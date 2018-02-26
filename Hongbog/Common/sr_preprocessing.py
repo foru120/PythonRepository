@@ -77,7 +77,7 @@ def data_to_file(data, name):
     '''
     with open(os.path.join(BLUR_IMAGE_PATH, 'image_data', str(name)+'.txt'), mode='w') as file:
         for idx in np.random.permutation(len(data)):
-            file.write(','.join([str(d) for d in data[idx][0]]) + ','.join([str(d) for d in data[idx][1]]) + '\n')
+            file.write(','.join([str(d) for d in data[idx][0]]) + ',' + ','.join([str(d) for d in data[idx][1]]) + '\n')
 
 def image_to_data():
     '''
