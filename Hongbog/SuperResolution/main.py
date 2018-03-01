@@ -58,7 +58,7 @@ class Neuralnet:
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 10, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/05_source/PythonRepository/Hongbog/SuperResolution/train_log/0001/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/05_source/PythonRepository/Hongbog/SuperResolution/train_log/0002/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
         flags.DEFINE_string('mon_data_log_path', 'D:/05_source/PythonRepository/Hongbog/SuperResolution//mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
@@ -183,6 +183,8 @@ class Neuralnet:
             sess.run(tf.global_variables_initializer())
             self._saver = tf.train.Saver()
 
+            # self._saver.restore(sess, self._FLAGS.trained_param_path)
+
             best_loss_val = np.infty  # 가장 좋은 loss 값을 저장하는 변수
             check_since_last_progress = 0  # early stopping 조건을 만족하지 않은 횟수
             self._best_model_params = None  # 가장 좋은 모델의 parameter 값을 저장하는 변수
@@ -190,8 +192,8 @@ class Neuralnet:
             print('Train start!!')
 
             for epoch in range(self._FLAGS.epochs):
-                tot_train_psnr = 0.
-                tot_valid_psnr = 0.
+                tot_train_psnr_list = []
+                tot_valid_psnr_list = []
                 tot_train_loss = 0.
                 tot_valid_loss = 0.
 
@@ -202,7 +204,9 @@ class Neuralnet:
                     train_x, train_y = self._data_loading(train_file)
                     for idx in range(0, 100, self._FLAGS.batch_size):
                         train_psnr, train_loss, _ = self._model.train(train_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), train_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
-                        tot_train_psnr += train_psnr / self._FLAGS.batch_size
+                        # if epoch + 1 in (50, 75):  # dynamic learning rate
+                        #     self._model.learning_rate = self._model.learning_rate / 10
+                        tot_train_psnr_list.append(train_psnr)
                         tot_train_loss += train_loss / self._FLAGS.batch_size
 
                 # 검증 부분
@@ -210,14 +214,14 @@ class Neuralnet:
                     valid_x, valid_y = self._data_loading(valid_file)
                     for idx in range(0, 100, self._FLAGS.batch_size):
                         valid_psnr, valid_loss = self._model.validation(valid_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), valid_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
-                        tot_valid_psnr += valid_psnr / self._FLAGS.batch_size
+                        tot_valid_psnr_list.append(valid_psnr)
                         tot_valid_loss += valid_loss / self._FLAGS.batch_size
 
                 etime = time.time()
 
-                train_psnr_mon = tot_train_psnr
+                train_psnr_mon = np.mean(np.array(tot_train_psnr_list), dtype=np.float64)
                 train_loss_mon = tot_train_loss
-                valid_psnr_mon = tot_valid_psnr
+                valid_psnr_mon = np.mean(np.array(tot_valid_psnr_list), dtype=np.float64)
                 valid_loss_mon = tot_valid_loss
                 train_time = etime - stime
 

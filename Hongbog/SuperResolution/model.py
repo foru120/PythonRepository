@@ -96,6 +96,8 @@ class Model:
             # l = tf.nn.softplus(l, 'output')
             logits = _conv(l, 3, 1, 1, 'output_layer')
 
+            logits = logits + self.X
+
             return logits
 
         self.logits = dense_net()
@@ -103,6 +105,7 @@ class Model:
         self.mse = tf.losses.mean_squared_error(self.y, self.logits, scope='mean_square_error')
         # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
         self.loss = tf.add_n([self.mse] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
+        # self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
         self.optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
         self.psnr = 20 * tf.log(255 / tf.sqrt(self.mse))
 
