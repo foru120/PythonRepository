@@ -4,6 +4,7 @@ from PIL import Image
 import cv2
 import numpy as np
 from collections import defaultdict
+import shutil
 
 ORI_IMAGE_PATH = 'D:\\Data\\casia_original'
 BLUR_IMAGE_PATH = 'D:\\Data\\casia_blurring'
@@ -118,5 +119,17 @@ def image_to_data():
                 print('create file, ' + str(file_cnt) + '.txt')
                 data_to_file(tot_image_data[idx:idx+100], file_cnt)
                 file_cnt = file_cnt + 1
+
+def sparse_file_move():
+    asis_path = 'D:\\100_dataset\\casia_blurring\\image_data'
+    tobe_path = 'D:\\100_dataset\\casia_blurring\\backup'
+
+    file_num = sorted([num + n for n in range(11, 100) for num in range(0, 9597, 100)])
+
+    for num in file_num:
+        try:
+            shutil.move(os.path.join(asis_path, str(num) + '.txt'), os.path.join(tobe_path, str(num) + '.txt'))
+        except FileNotFoundError:
+            print(str(num) + '.txt, 파일이 존재하지 않습니다.')
 
 image_to_data()
