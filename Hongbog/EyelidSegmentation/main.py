@@ -58,10 +58,10 @@ class Neuralnet:
         flags = tf.app.flags
         self._FLAGS = flags.FLAGS
         flags.DEFINE_string('image_data_path', 'D:\\Data\\casia_preprocessing\\image_data', '훈련 이미지 데이터 경로')
-        flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
+        flags.DEFINE_integer('epochs', 200, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0010/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0003/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
         flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
     def _init_database(self):
@@ -350,4 +350,4 @@ if __name__ == '__main__':
     neuralnet.train()
 
     # neuralnet = Neuralnet(is_train=False)
-    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0030\\0030_001.bmp')
+    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0050\\0050_001.bmp')

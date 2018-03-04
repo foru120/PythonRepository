@@ -6,7 +6,7 @@ class Model:
     def __init__(self, sess):
         self.sess = sess
         self.N = 12  # Dense Block 내의 Layer 개수
-        self.growthRate = 15  # k
+        self.growthRate = 24  # k
         self.compression_factor = 0.5
         self._build_graph()
 
@@ -70,6 +70,8 @@ class Model:
 
                 c = _depthwise_separable_conv(c, [3, 3], self.growthRate)
                 # c = _conv(c, 3, self.growthRate, 1)  # k, output
+                # c = _batch_norm(inputs=c, scope='basic_batch_norm_2')
+                # c = tf.nn.elu(c, 'basic_2')
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
                 l = tf.concat([c, l], axis=3)
@@ -102,20 +104,16 @@ class Model:
                     l = _add_layer('dense_layer_{}'.format(i), l)
                 l = _add_transition('transition2', l)
 
-            with tf.variable_scope('dense_block3'):
-                for i in range(self.N):
-                    l = _add_layer('dense_layer_{}'.format(i), l)
-
-            with tf.variable_scope('dense_block4'):
-                for i in range(self.N):
-                    l = _add_layer('dense_layer_{}'.format(i), l)
+            # with tf.variable_scope('dense_block3'):
+            #     for i in range(self.N):
+            #         l = _add_layer('dense_layer_{}'.format(i), l)
 
             l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
             l = tf.nn.elu(l, 'output')
             # l = tf.nn.softplus(l, 'output')
             # l = self._softx_func(l, 'output')
             l = avg_pool2d(inputs=l, kernel_size=[4, 4], stride=1, padding='VALID')
-            l = tf.reshape(l, shape=[-1, 1*1*499])  # k=12, shape=(-1,256)
+            l = tf.reshape(l, shape=[-1, 1*1*220])  # k=12, shape=(-1,256)
             l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
             logits = fully_connected(inputs=l, num_outputs=2, activation_fn=None,
                                      weights_initializer=variance_scaling_initializer(), weights_regularizer=self.regularizer)
@@ -124,7 +122,7 @@ class Model:
 
         self.logits = dense_net()
         self.prob = tf.nn.softmax(logits=self.logits, name='output')
-        loss = self._focal_loss(alpha=0.1)
+        loss = self._focal_loss(alpha=0.3)
         # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y)
         # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
         self.loss = tf.add_n([loss] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
@@ -139,7 +137,7 @@ class Model:
 
     def train(self, x_data, y_data):
         return self.sess.run([self.accuracy, self.loss, self.optimizer], feed_dict={self.X: x_data, self.y: y_data,
-                                                                                    self.training: True, self.dropout_rate: 0.6})
+                                                                                    self.training: True, self.dropout_rate: 0.8})
     def validation(self, x_test, y_test):
         return self.sess.run([self.accuracy, self.loss], feed_dict={self.X: x_test, self.y: y_test, self.training: False, self.dropout_rate: 1.0})
 
