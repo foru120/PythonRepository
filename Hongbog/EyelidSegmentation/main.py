@@ -3,13 +3,13 @@ import numpy as np
 import os
 import time
 from collections import deque
-import cx_Oracle
 import datetime
 
 from PIL import Image
 from PIL import ImageGrab
 
 from Hongbog.EyelidSegmentation.model import Model
+from Hongbog.EyelidSegmentation.database import Database
 
 class Neuralnet:
     '''신경망을 훈련하기 위한 클래스'''
@@ -47,8 +47,9 @@ class Neuralnet:
             print('Data loaded!!! - ' + str(round(etime - stime)) + ' 초.')
 
             if save_type == 'db':
-                self._init_database()
-                self._get_max_log_num()
+                self.db = Database(self._FLAGS)
+                self.db.init_database()
+                self.db.get_max_log_num()
 
     def _flag_setting(self):
         '''
@@ -63,35 +64,6 @@ class Neuralnet:
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
         flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0003/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
         flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
-
-    def _init_database(self):
-        '''
-        데이터베이스 연결을 수행하는 함수
-        :return: None
-        '''
-        self._conn = cx_Oracle.connect('hongbog/hongbog0102@localhost:1521/orcl')
-
-    def _get_cursor(self):
-        '''
-        데이터베이스 커서를 생성하는 함수
-        :return: 데이터베이스 커서, type -> cursor
-        '''
-        return self._conn.cursor()
-
-    def _close_cursor(self, cur):
-        '''
-        데이터베이스 커서를 닫는 함수
-        :param cur: 닫을 커서
-        :return: None
-        '''
-        cur.close()
-
-    def _close_conn(self):
-        '''
-        데이터베이스 연결을 해제하는 함수
-        :return: None
-        '''
-        self._conn.close()
 
     def _data_loading(self):
         '''
@@ -147,43 +119,6 @@ class Neuralnet:
         im = ImageGrab.grab()
         im.show()
 
-    def _mon_data_to_file(self, train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon):
-        '''
-        모니터링 대상(훈련 정확도, 훈련 손실 값, 검증 정확도, 검증 손실 값) 파일로 저장
-        :param train_acc_mon: 훈련 정확도
-        :param train_loss_mon: 훈련 손실 값
-        :param valid_acc_mon: 검증 정확도
-        :param valid_loss_mon: 검증 손실 값
-        :return: None
-        '''
-        with open(self._FLAGS.mon_data_log_path, 'a') as f:
-            f.write(','.join([str(train_acc_mon), str(valid_acc_mon), str(train_loss_mon), str(valid_loss_mon)]) + '\n')
-
-    def _get_max_log_num(self):
-        '''
-        현재 로깅된 최대 로그 숫자를 DB 에서 가져오는 함수
-        :return: None
-        '''
-        cur = self._get_cursor()
-        cur.execute('select nvl(max(log_num), 0) max_log_num from eyelid_seg_log')
-        self._max_log_num = cur.fetchone()[0]
-        self._close_cursor(cur)
-
-    def _mon_data_to_db(self, train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time):
-        '''
-        모니터링 대상(훈련 정확도, 훈련 손실 값, 검증 정확도, 검증 손실 값) DB로 저장
-        :param train_acc_mon: 훈련 정확도
-        :param train_loss_mon: 훈련 손실 값
-        :param valid_acc_mon: 검증 정확도
-        :param valid_loss_mon: 검증 손실 값
-        :return: None
-        '''
-        cur = self._get_cursor()
-        cur.execute('insert into eyelid_seg_log values(:log_num, :log_time, :train_time, :train_acc, :valid_acc, :train_loss, :valid_loss)',
-                    [self._max_log_num+1, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), train_time, train_acc_mon, valid_acc_mon, train_loss_mon, valid_loss_mon])
-        self._conn.commit()
-        self._close_cursor(cur)
-
     def train(self):
         '''
         신경망을 학습하는 함수
@@ -234,9 +169,9 @@ class Neuralnet:
                 train_time = etime - stime
 
                 if self.save_type == 'file':
-                    self._mon_data_to_file(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon)
+                    self.db.mon_data_to_file(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon)
                 else:
-                    self._mon_data_to_db(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time)
+                    self.db.mon_data_to_db(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time)
 
                 self.train_acc_mon.append(train_acc_mon)
                 self.train_loss_mon.append(train_loss_mon)
@@ -279,7 +214,7 @@ class Neuralnet:
 
         print('test accuracy:', np.mean(np.array(test_acc_list)))
 
-        self._close_conn()
+        self.db.close_conn()
 
     def _create_patch_image(self, ori_img):
         '''

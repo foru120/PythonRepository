@@ -129,7 +129,7 @@ def image_to_data():
     만들어진 패치 크기 이미지의 Gray Scale 값을 파일로 저장하는 함수
     :return: None
     '''
-    img_data, cnt_per_file = [], 100
+    img_data, cnt_per_file = [], 1200
 
     for img_path in get_file_path_list(NEW_IMAGE_PATH, [], 'E'):
         img_gray_values = image_gray_scale_extraction(img_path)
@@ -147,7 +147,12 @@ def image_to_data():
                 data_to_file(img_data, max(file_names)+1)
             img_data = []
 
+'''
+    Image Data 추가하는 방법
+     1) ground_truth_image_move() : 추가되는 대상만 groud_truth 파일에 기술
+     2) image_to_data()
+'''
+
 image_to_data()
-# image_to_data()
 # ground_truth_image_move()
 # start_image_patching()

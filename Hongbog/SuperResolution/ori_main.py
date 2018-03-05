@@ -208,7 +208,7 @@ class Neuralnet:
                         tot_train_psnr_list.append(train_psnr)
                         tot_train_loss += train_loss / self._FLAGS.batch_size
                         e_batch_time = time.time()
-                        print('[Training] [' + str(int(idx/self._FLAGS.batch_size) + 1) + '/10] Epoch: ' + str(epoch) + ', PSNL: ' + str(train_psnr) + ', Loss: ' + str(train_loss) + ', Time(s): ' + str(round(e_batch_time - s_batch_time, 2)))
+                        print('[Training] [' + str(int(idx / self._FLAGS.batch_size) + 1) + '/10] Epoch: ' + str(epoch) + ', PSNL: ' + str(train_psnr) + ', Loss: ' + str(train_loss) + ', Time(s): ' + str(round(e_batch_time - s_batch_time, 2)))
 
                 # 검증 부분
                 for valid_file in self._tot_valid_file:
@@ -219,7 +219,7 @@ class Neuralnet:
                         tot_valid_psnr_list.append(valid_psnr)
                         tot_valid_loss += valid_loss / self._FLAGS.batch_size
                         e_batch_time = time.time()
-                        print('[Validation] [' + str(int(idx / self._FLAGS.batch_size) + 1) + '/10] Epoch: ' + str(epoch) + ', PSNL: ' + str(valid_psnr) + ', Loss: ' + str(valid_loss) + ', Time(s): ' + str(round(e_batch_time - s_batch_time, 2)))
+                        print('[Validation] [' + str(int(idx / self._FLAGS.batch_size) + 1) + '/10] Epoch: ' + str(epoch) + ', PSNL: ' + str(train_psnr) + ', Loss: ' + str(train_loss) + ', Time(s): ' + str(round(e_batch_time - s_batch_time, 2)))
 
                 etime = time.time()
 
@@ -229,9 +229,7 @@ class Neuralnet:
                 valid_loss_mon = tot_valid_loss
                 train_time = etime - stime
 
-                print('epoch:', epoch + 1, ', train psnr:', round(train_psnr_mon, 2), ', train loss:', round(train_loss_mon, 2),
-                      ', validation psnr:', round(valid_psnr_mon, 2), ', validation loss:', round(valid_loss_mon, 2), ', train time:',
-                      round(train_time, 2))
+                print('epoch:', epoch + 1, ', train psnr:', round(train_psnr_mon, 2), ', train loss:', round(train_loss_mon, 2), ', validation psnr:', round(valid_psnr_mon, 2), ', validation loss:', round(valid_loss_mon, 2), ', train time:', round(train_time, 2))
 
                 if self.save_type == 'file':
                     self._mon_data_to_file(train_psnr_mon, train_loss_mon, valid_psnr_mon, valid_loss_mon)
@@ -299,7 +297,7 @@ class Neuralnet:
                 patches_data.append(img_data)
         return np.array(patches_data)
 
-    def _merge_super_resolution_image(self, predict_edges):
+    def _merge_super_resolution_image(self):
         '''
         예측된 고해상도 이미지의 패치 들을 가지고 merge 하는 함수
         :param ori_img: 원본 이미지
@@ -307,27 +305,28 @@ class Neuralnet:
         :return: edge 가 표시된 이미지, type -> Image
         '''
         x_pixel, y_pixel = 640, 480
-        x_delta, y_delta, pixel_cnt = int(x_pixel / 10), int(y_pixel / 10), 1
+        x_delta, y_delta, pixel_cnt, img_cnt = int(x_pixel / 10), int(y_pixel / 10), 0, 0
         new_img = Image.new('L', (x_pixel, y_pixel))
 
         for init_y in range(0, y_pixel, y_delta):
             for init_x in range(0, x_pixel, x_delta):
-                if img_cnt in predict_edges:
-                    for y in range(init_y, init_y + y_delta):
-                        for x in range(init_x, init_x + x_delta):
-                            new_img.putpixel((x, y), predict_edges[pixel_cnt])
-                            pixel_cnt = pixel_cnt + 1
+                pixel_cnt = 0
+                value = self.logit[img_cnt].ravel()
+                for y in range(init_y, init_y + y_delta):
+                    for x in range(init_x, init_x + x_delta):
+                        new_img.putpixel((x, y), int(value[pixel_cnt]))
+                        pixel_cnt = pixel_cnt + 1
+                img_cnt = img_cnt + 1
 
         return new_img
 
     def predict(self, img_path):
         '''
-        임의의 이미지에 대해 분류를 수행하는 함수
+        임의의 이미지에 대해 고해상도 이미지로 변환하는 함수
         :return: None
         '''
         ori_img = Image.open(img_path)
         patches_data = self._create_patch_image(ori_img)
-        predict_pixel = []
 
         tf.reset_default_graph()
 
@@ -337,10 +336,9 @@ class Neuralnet:
             sess.run(tf.global_variables_initializer())
             self._saver = tf.train.Saver()
             self._saver.restore(sess, self._FLAGS.trained_param_path)
-            logit = self._model.predict(patches_data.reshape(-1, 64, 48, 1))
-            predict_pixel = [idx for idx, value in enumerate(logit) if value[0] <= value[1]]
+            self.logit = self._model.predict(patches_data.reshape(-1, 64, 48, 1))
 
-        predict_img = self._merge_super_resolution_image(predict_pixel)
+        predict_img = self._merge_super_resolution_image()
         predict_img.show()
 
 if __name__ == '__main__':

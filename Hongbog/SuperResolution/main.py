@@ -182,8 +182,6 @@ class Neuralnet:
             coord.request_stop()
             coord.join(threads)
 
-
-
     def _test(self, sess):
         '''
         테스트 데이터에 대해 분류를 수행하는 함수
@@ -193,14 +191,14 @@ class Neuralnet:
         if self._best_model_params:  # 가장 좋은 신경망의 파라미터 값을 Restore
             self._restore_model_params()
 
-        tot_test_psnr = 0.
+        tot_test_psnr_list = []
 
         for _ in range(self.loader.test_cnt * int(self._FLAGS.data_cnt_per_file / self._FLAGS.batch_size)):
             test_x, test_y = sess.run([self.loader.test_x, self.loader.test_y])
-            psnr = self._model.get_psnr(test_x.reshape(-1, 64, 48, 1), test_y.reshape(-1, 64, 48, 1))
-            tot_test_psnr = psnr / self._FLAGS.batch_size
+            test_psnr = self._model.get_psnr(test_x.reshape(-1, 64, 48, 1), test_y.reshape(-1, 64, 48, 1))
+            tot_test_psnr_list.append(test_psnr)
 
-        print('test psnr:', tot_test_psnr)
+        print('test psnr:', np.mean(np.array(tot_test_psnr_list)))
 
         self.db.close_conn()
 
@@ -223,7 +221,7 @@ class Neuralnet:
                 patches_data.append(img_data)
         return np.array(patches_data)
 
-    def _merge_super_resolution_image(self, predict_edges):
+    def _merge_super_resolution_image(self):
         '''
         예측된 고해상도 이미지의 패치 들을 가지고 merge 하는 함수
         :param ori_img: 원본 이미지
@@ -231,27 +229,27 @@ class Neuralnet:
         :return: edge 가 표시된 이미지, type -> Image
         '''
         x_pixel, y_pixel = 640, 480
-        x_delta, y_delta, pixel_cnt = int(x_pixel / 10), int(y_pixel / 10), 1
+        x_delta, y_delta, pixel_cnt, img_cnt = int(x_pixel / 10), int(y_pixel / 10), 0, 0
         new_img = Image.new('L', (x_pixel, y_pixel))
 
         for init_y in range(0, y_pixel, y_delta):
             for init_x in range(0, x_pixel, x_delta):
-                if pixel_cnt in predict_edges:
-                    for y in range(init_y, init_y + y_delta):
-                        for x in range(init_x, init_x + x_delta):
-                            new_img.putpixel((x, y), predict_edges[pixel_cnt])
-                            pixel_cnt = pixel_cnt + 1
-
+                pixel_cnt = 0
+                value = self.logit[img_cnt].ravel()
+                for y in range(init_y, init_y + y_delta):
+                    for x in range(init_x, init_x + x_delta):
+                        new_img.putpixel((x, y), int(value[pixel_cnt]))
+                        pixel_cnt = pixel_cnt + 1
+                img_cnt = img_cnt + 1
         return new_img
 
     def predict(self, img_path):
         '''
-        임의의 이미지에 대해 분류를 수행하는 함수
+        임의의 이미지에 대해 고해상도 이미지로 변환하는 함수
         :return: None
         '''
         ori_img = Image.open(img_path)
         patches_data = self._create_patch_image(ori_img)
-        predict_pixel = []
 
         tf.reset_default_graph()
 
@@ -261,15 +259,14 @@ class Neuralnet:
             sess.run(tf.global_variables_initializer())
             self._saver = tf.train.Saver()
             self._saver.restore(sess, self._FLAGS.trained_param_path)
-            logit = self._model.predict(patches_data.reshape(-1, 64, 48, 1))
-            predict_pixel = [idx for idx, value in enumerate(logit) if value[0] <= value[1]]
+            self.logit = self._model.predict(patches_data.reshape(-1, 64, 48, 1))
 
-        predict_img = self._merge_super_resolution_image(predict_pixel)
+        predict_img = self._merge_super_resolution_image()
         predict_img.show()
 
 if __name__ == '__main__':
-    neuralnet = Neuralnet(is_train=True, save_type='db')
-    neuralnet.train()
+    # neuralnet = Neuralnet(is_train=True, save_type='db')
+    # neuralnet.train()
 
-    # neuralnet = Neuralnet(is_train=False)
-    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0008\\0008_001.bmp')
+    neuralnet = Neuralnet(is_train=False)
+    neuralnet.predict('D:\\Data\\casia_original\\non-cropped\\device1\\0000\\0000_000.bmp')
