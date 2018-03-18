@@ -125,3 +125,114 @@ DataFrame(data, columns=['year', 'state', 'pop'])
 frame2 = DataFrame(data, columns=['year', 'state', 'pop', 'debt'], index=['one', 'two', 'three', 'four', 'five'])
 frame2
 frame2.columns
+'''
+    DataFrame 의 칼럼은 Series 처럼 사전 형식의 표기법으로 접근하거나 속성 형식으로 접근할 수 있다.
+'''
+frame2['state']
+frame2.year
+'''
+    반환된 Series 객체가 DataFrame 같은 색인을 가지면 알맞은 값으로 name 속성이 채워진다.
+    로우는 위치나 ix 같은 몇 가지 메서드를 통해 접근할 수 있다.
+'''
+frame2.ix['three']  # .ix is deprecated.
+frame2.loc['three']  # .loc for label based indexsing or
+frame2.iloc[2]  # .iloc for positional indexing
+'''
+    칼럼은 대입이 가능하다.
+    예를 들면 현재 비어있는 'debt' 칼럼에 스칼라 값이나 배열의 값을 대입할 수 있다.
+'''
+frame2['debt'] = 16.5  # 전체 행에 대해 같은 값이 들어간다.
+frame2
+frame2['debt'] = np.arange(5.)
+frame2
+'''
+    리스트나 배열을 칼럼에 대입할 때는 대입하려는 값의 길이가 DataFrame 의 크기와 같아야 한다.
+    Series 를 대입하려면 DataFrame 의 색인에 따라 값이 대입되며 없는 색인에는 값이 대입되지 않는다.
+'''
+val = Series([-1.2, -1.5, -1.7], index=['two', 'four', 'five'])
+frame2['debt'] = val
+frame2
+'''
+    없는 칼럼을 대입하면 새로운 칼럼이 생성된다.
+    파이썬 사전형에서와 마찬가지로 del 예약어를 사용해서 칼럼을 삭제할 수 있다.
+'''
+frame2['eastern'] = frame2.state == 'Ohio'
+frame2
+del frame2['eastern']
+frame2.columns
+'''
+    DataFrame 의 색인을 이용해서 생성된 칼럼은 내부 데이터에 대한 뷰이며 복사가 이루어지지 않는다.
+    따라서 이렇게 얻은 Series 객체에 대한 변경은 실제 DataFrame 에 반영된다.
+    복사본이 필요할 때는 Series 의 copy 메서드를 이용하자.
+'''
+'''
+    또한 중첩된 사전을 이용해서 데이터를 생성할 수 있는데, 다음과 같은 중첩된 사전이 있다면
+'''
+pop = {'Nevada': {2001: 2.4, 2002: 2.9}, 'Ohio': {2000: 1.5, 2001: 1.7, 2002: 3.6}}
+'''
+    바깥에 있는 사전의 키 값이 칼럼이 되고 안에 있는 키는 로우가 된다.
+'''
+frame3 = DataFrame(pop)
+frame3
+'''
+    NumPy 에서와 마찬가지로 결과 값의 순서를 뒤집을 수 있다.
+'''
+frame3.T
+'''
+    중첩된 사전을 이용해서 DataFrame 을 생성할 때 안쪽에 있는 사전 값은 키 값별로 조합되어 결과의 색인이 되지만 색인을
+    직접 지정한다면 지정된 색인으로 DataFrame 을 생성한다.
+'''
+DataFrame(pop, index=[2001, 2002, 2003])
+'''
+    Series 객체를 담고 있는 사전 데이터도 같은 방식으로 취급된다.
+'''
+pdata = {'Ohio': frame3['Ohio'][:-1], 'Nevada': frame3['Nevada'][:2]}
+DataFrame(pdata)
+'''
+    DataFrame 생성자에 넘길 수 있는 자료형의 목록은 [표 5-1]을 참고하자.
+'''
+frame3.index.name = 'year'
+frame3.columns.name = 'state'
+frame3
+'''
+    Series 와 유사하게 values 속성은 DataFrame 에 저장된 데이터를 2차원 배열로 반환한다.
+'''
+frame3.values
+'''
+    DataFrame 의 칼럼에 서로 다른 dtype 이 있다면 모든 칼럼을 수용하기 위해 그 칼럼 배열의 dtype 이 선택된다.
+'''
+frame2.values
+
+#todo 5.1.3 색인 객체
+'''
+    pandas 의 색인 객체는 표 형식의 데이터에서 각 로우와 칼럼에 대한 이름과 다른 메타데이터(축의 이름 등)를 저장하는
+    객체다.
+    Series 나 DataFrame 객체를 생성할 때 사용되는 배열이나 혹은 다른 순차적인 이름은 내부적으로 색인으로 변환된다.
+'''
+obj = Series(range(3), index=['a', 'b', 'c'])
+index = obj.index
+index
+index[1:]
+'''
+    색인 객체는 변경할 수 없다.
+'''
+index[1] = 'd'
+'''
+    색인 객체는 변경할 수 없기에 자료 구조 사이에서 안전하게 공유될 수 있다.
+'''
+index = pd.Index(np.arange(3))
+obj2 = Series([1.5, -2.5, 0], index=index)
+obj2.index is index
+'''
+    [표 5-2]에 pandas 에서 사용하는 내장 색인 클래스가 정리되어 있다.
+    특수한 목적으로 축을 색인하는 기능을 개발하기 위해 Index 클래스의 서브 클래스를 만들 수 있다.
+'''
+'''
+    또한 배열과 유사하게 Index 객체도 고정 크기로 동작한다.
+'''
+frame3
+'Ohio' in frame3.columns
+2003 in frame3.index
+'''
+    각각의 색인은 담고 있는 데이터에 대한 정보를 취급하는 여러 가지 메서드와 속성을 가지고 있다.
+'''
