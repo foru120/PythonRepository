@@ -74,8 +74,10 @@ class Model:
                 # c = tf.nn.elu(c, 'basic_2')
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
-                l = tf.concat([c, l], axis=3)
-            return l
+                c = tf.concat([c, l], axis=3)
+                c = c + _conv(l, 1, c.get_shape()[-1], 1)
+
+            return c
 
         def _add_transition(name, l):
             with tf.variable_scope(name):
@@ -92,7 +94,8 @@ class Model:
             return l
 
         def dense_net():
-            l = _conv(self.X, 5, 16, 1)
+            with tf.variable_scope('input_part'):
+                l = _conv(self.X, 5, 16, 1)
 
             with tf.variable_scope('dense_block1'):
                 for i in range(self.N):
@@ -108,26 +111,43 @@ class Model:
                 for i in range(self.N):
                     l = _add_layer('dense_layer_{}'.format(i), l)
 
-            l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
-            l = tf.nn.elu(l, 'output')
-            # l = tf.nn.softplus(l, 'output')
-            # l = self._softx_func(l, 'output')
-            l = avg_pool2d(inputs=l, kernel_size=[4, 4], stride=1, padding='VALID')
-            l = tf.reshape(l, shape=[-1, 1*1*508])  # k=12, shape=(-1,256)
-            l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
-            logits = fully_connected(inputs=l, num_outputs=2, activation_fn=None,
-                                     weights_initializer=variance_scaling_initializer(), weights_regularizer=self.regularizer)
+            with tf.variable_scope('output_part'):
+                l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
+                cam_output = tf.nn.elu(l, 'output')
 
-            return logits
+                # l = tf.nn.softplus(l, 'output')
+                # l = self._softx_func(l, 'output')
+                l = avg_pool2d(inputs=cam_output, kernel_size=[4, 4], stride=1, padding='VALID')
+                l = tf.reshape(l, shape=[-1, 1*1*508])  # k=12, shape=(-1,256)
+                l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
+                logits = fully_connected(inputs=l, num_outputs=2, activation_fn=None,
+                                         weights_initializer=variance_scaling_initializer(), weights_regularizer=self.regularizer)
+            return cam_output, logits
 
-        self.logits = dense_net()
-        self.prob = tf.nn.softmax(logits=self.logits, name='output')
+        self.cam_output, self.logits = dense_net()
+        self.prob = tf.nn.softmax(logits=self.logits, name='prob')
         loss = self._focal_loss(alpha=0.3)
         # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y)
         # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
+        # print(tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES))
+        # print(tf.get_collection(tf.GraphKeys.ACTIVATIONS))
         self.loss = tf.add_n([loss] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
         self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), self.y), dtype=tf.float64))
+
+    def cam(self, x_data):
+        image_size = [16, 16]
+        with tf.variable_scope(name_or_scope='output_part', reuse=True):
+            cam_conv_resize = tf.image.resize_images(self.cam_output, image_size)  # ?, 16, 16, 508
+            cam_fc_value = tf.nn.bias_add(tf.get_variable('fully_connected/weights'), tf.get_variable('fully_connected/biases'))  # 508, 2
+            # p = tf.argmax(self.prob)
+            # print(self.prob.get_shape())
+            # print(p.get_shape())
+            # print(tf.transpose(cam_fc_value)[p])
+        cam_heatmap = tf.matmul(tf.reshape(cam_conv_resize, (-1, 508)), tf.reshape(tf.transpose(cam_fc_value)[1], (508, 1)))
+        cam_heatmap = tf.reshape(cam_heatmap, image_size)
+
+        return self.sess.run([self.logits, cam_heatmap], feed_dict={self.X: x_data, self.training: False, self.dropout_rate: 1.0})
 
     def predict(self, x_test):
         return self.sess.run(self.prob, feed_dict={self.X: x_test, self.training: False, self.dropout_rate: 1.0})
@@ -159,6 +179,21 @@ class Model:
         per_entry_cross_ent = - alpha * (pos_p_sub ** gamma) * tf.log(tf.clip_by_value(self.prob, 1e-8, 1.0)) \
                               - (1 - alpha) * (neg_p_sub ** gamma) * tf.log(tf.clip_by_value(1.0 - self.prob, 1e-8, 1.0))
         return tf.reduce_mean(per_entry_cross_ent)
+
+    # def _focal_loss(self, alpha=0.25, gamma=2):
+    #     '''
+    #     신경망에서 사용되는 loss 함수중의 하나 (데이터 셋의 비율이 한 쪽에 치우친 경우 사용하면 유용)
+    #     :param alpha: positive 와 negative 의 loss 비율을 조정하는 하이퍼파라미터
+    #     :param gamma: 실제 정답 레이블을 예측하는 확률 값의 크기를 조정하는 하이퍼파라미터
+    #     :return: softmax 를 거쳐 나온 확률 값을 토대로 계산된 loss 값, type -> tensor
+    #     '''
+    #     zeros = array_ops.zeros_like(self.prob, dtype=self.prob.dtype)
+    #     onehot_y = tf.one_hot(indices=self.y, depth=2, dtype=tf.float32)
+    #     pos_p_sub = array_ops.where(onehot_y > zeros, onehot_y - self.prob, zeros)
+    #     neg_p_sub = array_ops.where(onehot_y > zeros, zeros, self.prob)
+    #     per_entry_cross_ent = - alpha * (pos_p_sub ** gamma) * tf.log(tf.clip_by_value(self.prob, 1e-8, 1.0)) \
+    #                           - (1 - alpha) * (neg_p_sub ** gamma) * tf.log(tf.clip_by_value(1.0 - self.prob, 1e-8, 1.0))
+    #     return tf.reduce_sum(per_entry_cross_ent)
 
     def _parametric_relu(self, _x, name):
         alphas = tf.get_variable(name+'alphas', _x.get_shape()[-1], initializer=tf.constant_initializer(0.01), dtype=tf.float32)

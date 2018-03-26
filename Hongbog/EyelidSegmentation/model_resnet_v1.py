@@ -74,8 +74,10 @@ class Model:
                 # c = tf.nn.elu(c, 'basic_2')
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
-                l = tf.concat([c, l], axis=3)
-            return l
+                c = tf.concat([c, l], axis=3)
+                c = c + _conv(l, 1, c.get_shape()[-1], 1)
+
+            return c
 
         def _add_transition(name, l):
             with tf.variable_scope(name):

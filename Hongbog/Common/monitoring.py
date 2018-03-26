@@ -11,12 +11,12 @@ class Monitoring:
     valid_acc_list = deque(maxlen=100)
     valid_loss_list = deque(maxlen=100)
 
-    def __init__(self, load_type):
+    def __init__(self, load_type, train_log):
         self.load_type = load_type
+        self.train_log = train_log
 
         if load_type == 'db':
             self._init_database()
-            self._get_max_log_num()
 
         f = plt.figure(figsize=(10, 8))
 
@@ -72,19 +72,9 @@ class Monitoring:
         '''
         self._conn.close()
 
-    def _get_max_log_num(self):
-        '''
-        현재 로깅된 최대 로그 숫자를 DB 에서 가져오는 함수
-        :return: None
-        '''
-        cur = self._get_cursor()
-        cur.execute('select nvl(max(log_num), 0) max_log_num from eyelid_seg_log')
-        self._max_log_num = cur.fetchone()[0]
-        self._close_cursor(cur)
-
     def _mon_data_from_db(self):
         cur = self._get_cursor()
-        cur.execute('select train_acc, valid_acc, train_loss, valid_loss from eyelid_seg_log where log_num = :log_num order by log_time', [self._max_log_num+1])
+        cur.execute('select train_acc, valid_acc, train_loss, valid_loss from eyelid_seg_log where train_log = :log_num order by log_time', [self.train_log])
 
         mon_log = []
         for train_acc, valid_acc, train_loss, valid_loss in cur.fetchall():
@@ -131,4 +121,4 @@ class Monitoring:
         self.l1.set_data([epoch for epoch in range(1, len(self.train_loss_list)+1)], self.train_loss_list)
         self.l2.set_data([epoch for epoch in range(1, len(self.valid_loss_list)+1)], self.valid_loss_list)
 
-mon = Monitoring(load_type='db')
+mon = Monitoring(load_type='db', train_log=15)

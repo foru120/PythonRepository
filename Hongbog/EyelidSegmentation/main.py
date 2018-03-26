@@ -7,8 +7,10 @@ import datetime
 
 from PIL import Image
 from PIL import ImageGrab
+import matplotlib.pyplot as plt
 
-from Hongbog.EyelidSegmentation.model import Model
+from Hongbog.EyelidSegmentation.model_resnet_v1 import Model
+# from Hongbog.EyelidSegmentation.model import Model
 from Hongbog.EyelidSegmentation.database import Database
 
 class Neuralnet:
@@ -44,12 +46,11 @@ class Neuralnet:
             self._data_loading()
             self._data_separation()
             etime = time.time()
-            print('Data loaded!!! - ' + str(round(etime - stime)) + ' 초.')
+            print('Data loaded!!! - ' + str(round(etime - stime, 2)) + ' 초.')
 
             if save_type == 'db':
-                self.db = Database(self._FLAGS)
+                self.db = Database(self._FLAGS, 15)
                 self.db.init_database()
-                self.db.get_max_log_num()
 
     def _flag_setting(self):
         '''
@@ -58,12 +59,15 @@ class Neuralnet:
         '''
         flags = tf.app.flags
         self._FLAGS = flags.FLAGS
-        flags.DEFINE_string('image_data_path', 'D:\\Data\\casia_preprocessing\\image_data', '훈련 이미지 데이터 경로')
+        flags.DEFINE_string('image_data_path', 'D:\\100_dataset\\casia_eyelid_segmentation\\image_data', '훈련 이미지 데이터 경로')
         flags.DEFINE_integer('epochs', 200, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0003/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
-        flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/05_source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0013/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('mon_data_log_path', 'D:/05_source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
+        self.config = tf.ConfigProto(
+            gpu_options=tf.GPUOptions(allow_growth=True, per_process_gpu_memory_fraction=0.7)
+        )
 
     def _data_loading(self):
         '''
@@ -120,16 +124,11 @@ class Neuralnet:
         im.show()
 
     def train(self):
-        '''
-        신경망을 학습하는 함수
-        :return: None
-        '''
-        with tf.Session() as sess:
+        with tf.Session(config=self.config) as sess:
             self._model = Model(sess)
-
             sess.run(tf.global_variables_initializer())
-            self._saver = tf.train.Saver()
 
+            self._saver = tf.train.Saver()
             best_loss_val = np.infty  # 가장 좋은 loss 값을 저장하는 변수
             check_since_last_progress = 0  # early stopping 조건을 만족하지 않은 횟수
             self._best_model_params = None  # 가장 좋은 모델의 parameter 값을 저장하는 변수
@@ -152,7 +151,6 @@ class Neuralnet:
                     train_acc, train_loss, _ = self._model.train(train_x_batch.reshape(-1, 16, 16, 1), train_y_batch)
                     tot_train_loss += train_loss / len(train_x_batch)
                     train_acc_list.append(train_acc)
-
                 # 검증 부분
                 for idx in range(0, self._valid_x.shape[0], self._FLAGS.batch_size):
                     valid_x_batch, valid_y_batch = self._valid_x[idx:idx+self._FLAGS.batch_size, ], self._valid_y[idx:idx+self._FLAGS.batch_size, ]
@@ -162,23 +160,25 @@ class Neuralnet:
 
                 etime = time.time()
 
-                train_acc_mon = np.mean(np.array(train_acc_list))
-                train_loss_mon = tot_train_loss
-                valid_acc_mon = np.mean(np.array(valid_acc_list))
-                valid_loss_mon = tot_valid_loss
-                train_time = etime - stime
-
-                if self.save_type == 'file':
-                    self.db.mon_data_to_file(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon)
-                else:
-                    self.db.mon_data_to_db(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time)
+                train_acc_mon = round(np.mean(np.array(train_acc_list)), 4)
+                train_loss_mon = round(tot_train_loss, 4)
+                valid_acc_mon = round(np.mean(np.array(valid_acc_list)), 4)
+                valid_loss_mon = round(tot_valid_loss, 4)
+                train_time = round(etime - stime, 2)
 
                 self.train_acc_mon.append(train_acc_mon)
                 self.train_loss_mon.append(train_loss_mon)
                 self.valid_acc_mon.append(valid_acc_mon)
                 self.valid_loss_mon.append(valid_loss_mon)
 
-                print('epoch:', epoch+1, ', train accuracy:', train_acc_mon, ', train loss:', train_loss_mon, ', validation accuracy:', valid_acc_mon, ', validation loss:', valid_loss_mon, ', train time:', train_time)
+                print('epoch:', epoch + 1, ', train accuracy:', train_acc_mon, ', train loss:', train_loss_mon,
+                      ', validation accuracy:', valid_acc_mon, ', validation loss:', valid_loss_mon, ', train time:',
+                      train_time)
+
+                if self.save_type == 'file':
+                    self.db.mon_data_to_file(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon)
+                else:
+                    self.db.mon_data_to_db(train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon, train_time)
 
                 # Early Stopping 조건 확인
                 if tot_valid_loss < best_loss_val:
@@ -261,11 +261,10 @@ class Neuralnet:
         임의의 이미지에 대해 분류를 수행하는 함수
         :return: None
         '''
-        ori_img = Image.open(img_path)
+        ori_img = Image.open(img_path).convert('L')
+        # ori_img.thumbnail((640, 480), Image.ANTIALIAS)
         patches_data = self._create_patch_image(ori_img)
         predict_edges = []
-
-        tf.reset_default_graph()
 
         with tf.Session() as sess:
             self._model = Model(sess)
@@ -280,9 +279,69 @@ class Neuralnet:
         predict_img = self._edge_output_on_the_image(ori_img, predict_edges)
         predict_img.show()
 
+    def convert_patch_to_full(self, cam_heatmaps):
+        x_pixel, y_pixel = (640, 480)
+        x_delta, y_delta, img_cnt = int(x_pixel / 40), int(y_pixel / 30), 0
+        newImg = np.empty((x_pixel, y_pixel))
+
+        for init_y in range(0, y_pixel, y_delta):
+            for init_x in range(0, x_pixel, x_delta):
+                patch_img = cam_heatmaps[img_cnt]
+                for y in range(init_y, init_y + y_delta):
+                    for x in range(init_x, init_x + x_delta):
+                        newImg[x, y] = patch_img[x-init_x][y-init_y]
+                img_cnt += 1
+
+        return newImg
+
+    def cam_data_save(self, data):
+        with open('D:\\100_dataset\\casia_eyelid_segmentation\\cam_data\\cam_data.txt', mode='a') as f:
+            data = data.flatten()
+            data = data.astype(np.str_)
+            f.write(','.join(data.tolist()) + '\n')
+
+    def cam_predict(self, img_path):
+        ori_img = Image.open(img_path).convert('L')
+        patches_data = self._create_patch_image(ori_img).reshape(-1, 16, 16, 1) / 255
+        predict_edges = []
+        cam_heatmaps = []
+
+        with tf.Session(config=self.config) as sess:
+            self._model = Model(sess)
+
+            sess.run(tf.global_variables_initializer())
+            self._saver = tf.train.Saver()
+            self._saver.restore(sess, self._FLAGS.trained_param_path)
+
+            for idx in range(1200):
+                print(idx)
+                logit, cam_heatmap = self._model.cam(patches_data[idx].reshape(-1, 16, 16, 1))
+                predict_edges.append(logit)
+                self.cam_data_save(cam_heatmap)
+                # cam_heatmaps.append(cam_heatmap)
+            predict_edges = [idx for idx, value in enumerate(predict_edges) if value[0] <= value[1]]
+            print(predict_edges)
+
+        # predict_img = self._edge_output_on_the_image(ori_img, predict_edges)
+        # cam_img = self.convert_patch_to_full(cam_heatmaps)
+        #
+        # plt.figure(figsize=(10, 8))
+        # predict_plot = plt.subplot(121)
+        # predict_plot.imshow(predict_img)
+        #
+        # cam_plot = plt.subplot(122)
+        # cam_plot.imshow(ori_img)
+        # cam_plot.imshow(cam_img, cmap=plt.cm.jet, alpha=0.5, interpolation='bilinear')
+        #
+        # plt.show()
+
 if __name__ == '__main__':
-    neuralnet = Neuralnet(is_train=True, save_type='db')
-    neuralnet.train()
+    # neuralnet = Neuralnet(is_train=True, save_type='db')
+    # neuralnet.train()
+
+    neuralnet = Neuralnet(is_train=False)
+    # neuralnet.predict('D:\\111.bmp')
+    neuralnet.predict('D:\\100_dataset\\iris\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0035\\0035_000.bmp')
 
     # neuralnet = Neuralnet(is_train=False)
-    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0050\\0050_001.bmp')
+    # neuralnet.cam_predict('D:\\100_dataset\\iris\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0030\\0030_000.bmp')
