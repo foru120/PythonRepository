@@ -38,9 +38,8 @@ class Neuralnet:
         self._flag_setting()  # flag setting
 
         if (is_train == True) and (save_type == 'db'):  # data loading
-            self.db = Database()
+            self.db = Database(FLAGS=self._FLAGS, train_log=6)
             self.db.init_database()
-            self.db.get_max_log_num()
 
     def _flag_setting(self):
         '''
@@ -49,7 +48,7 @@ class Neuralnet:
         '''
         flags = tf.app.flags
         self._FLAGS = flags.FLAGS
-        flags.DEFINE_string('blurring_image_path', 'D:\\Data\\casia_blurring\\image_data', '학습 이미지 데이터 경로')
+        flags.DEFINE_string('blurring_image_path', 'D:\\Data\\casia_super_resolution\\casia_blurring\\image_data', '학습 이미지 데이터 경로')
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 10, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
@@ -103,7 +102,7 @@ class Neuralnet:
             if ck_point:
                 self._saver.restore(sess, self._FLAGS.trained_param_path)
 
-            self.loader = Dataloader(data_path='D:\\Data\\casia_blurring\\image_data', batch_size=self._FLAGS.batch_size)
+            self.loader = Dataloader(data_path=self._FLAGS.blurring_image_path, batch_size=self._FLAGS.batch_size)
             self.loader.start()
 
             best_loss_val = np.infty  # 가장 좋은 loss 값을 저장하는 변수
@@ -265,8 +264,8 @@ class Neuralnet:
         predict_img.show()
 
 if __name__ == '__main__':
-    # neuralnet = Neuralnet(is_train=True, save_type='db')
-    # neuralnet.train()
+    neuralnet = Neuralnet(is_train=True, save_type='db')
+    neuralnet.train()
 
-    neuralnet = Neuralnet(is_train=False)
-    neuralnet.predict('D:\\Data\\casia_original\\non-cropped\\device1\\0000\\0000_000.bmp')
+    # neuralnet = Neuralnet(is_train=False)
+    # neuralnet.predict('D:\\Data\\casia_original\\non-cropped\\device1\\0000\\0000_000.bmp')

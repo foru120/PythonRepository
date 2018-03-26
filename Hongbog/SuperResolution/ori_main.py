@@ -3,13 +3,14 @@ import numpy as np
 import os
 import time
 from collections import deque
-import cx_Oracle
 import datetime
+import re
 
 from PIL import Image
 from PIL import ImageGrab
 
 from Hongbog.SuperResolution.model import Model
+from Hongbog.SuperResolution.database import Database
 
 class Neuralnet:
     '''신경망을 훈련하기 위한 클래스'''
@@ -44,8 +45,8 @@ class Neuralnet:
             etime = time.time()
 
             if save_type == 'db':
-                self._init_database()
-                self._get_max_log_num()
+                self.db = Database(FLAGS=self._FLAGS, train_log=6)
+                self.db.init_database()
 
     def _flag_setting(self):
         '''
@@ -54,44 +55,15 @@ class Neuralnet:
         '''
         flags = tf.app.flags
         self._FLAGS = flags.FLAGS
-        flags.DEFINE_string('blurring_image_path', 'D:\\Data\\casia_blurring\\image_data', '학습 이미지 데이터 경로')
-        flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
+        flags.DEFINE_string('training_image_path', 'D:\\Data\\casia_super_resolution\\training_data\\level_3\\image_data', '학습 이미지 데이터 경로')
+        flags.DEFINE_integer('epochs', 200, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 10, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/SuperResolution/train_log/0002/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_string('trained_param_path', 'D:/Source/PythonRepository/Hongbog/SuperResolution/train_log/best_2st/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
         flags.DEFINE_string('mon_data_log_path', 'D:/Source/PythonRepository/Hongbog/SuperResolution//mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
 
-    def _init_database(self):
-        '''
-        데이터베이스 연결을 수행하는 함수
-        :return: None
-        '''
-        self._conn = cx_Oracle.connect('hongbog/hongbog0102@localhost:1521/orcl')
-
-    def _get_cursor(self):
-        '''
-        데이터베이스 커서를 생성하는 함수
-        :return: 데이터베이스 커서, type -> cursor
-        '''
-        return self._conn.cursor()
-
-    def _close_cursor(self, cur):
-        '''
-        데이터베이스 커서를 닫는 함수
-        :param cur: 닫을 커서
-        :return: None
-        '''
-        cur.close()
-
-    def _close_conn(self):
-        '''
-        데이터베이스 연결을 해제하는 함수
-        :return: None
-        '''
-        self._conn.close()
-
     def _file_separation(self):
-        file_list = np.array(os.listdir(self._FLAGS.blurring_image_path))
+        file_list = np.array(os.listdir(self._FLAGS.training_image_path))
         rand_nums = np.random.permutation(len(file_list))
         cnt = len(file_list)
         self._tot_train_file = file_list[rand_nums[:int(cnt * 0.6)]]
@@ -105,7 +77,7 @@ class Neuralnet:
         '''
         image_size = 64 * 48
 
-        data = np.loadtxt(os.path.join(self._FLAGS.blurring_image_path, file_name), delimiter=',', dtype=np.float32)
+        data = np.loadtxt(os.path.join(self._FLAGS.training_image_path, file_name), delimiter=',', dtype=np.float32)
         return data[:, :image_size], data[:, image_size:]
 
     def _get_model_params(self):
@@ -135,43 +107,6 @@ class Neuralnet:
         im = ImageGrab.grab()
         im.show()
 
-    def _mon_data_to_file(self, train_acc_mon, train_loss_mon, valid_acc_mon, valid_loss_mon):
-        '''
-        모니터링 대상(훈련 정확도, 훈련 손실 값, 검증 정확도, 검증 손실 값) 파일로 저장
-        :param train_acc_mon: 훈련 정확도
-        :param train_loss_mon: 훈련 손실 값
-        :param valid_acc_mon: 검증 정확도
-        :param valid_loss_mon: 검증 손실 값
-        :return: None
-        '''
-        with open(self._FLAGS.mon_data_log_path, 'a') as f:
-            f.write(','.join([str(train_acc_mon), str(valid_acc_mon), str(train_loss_mon), str(valid_loss_mon)]) + '\n')
-
-    def _get_max_log_num(self):
-        '''
-        현재 로깅된 최대 로그 숫자를 DB 에서 가져오는 함수
-        :return: None
-        '''
-        cur = self._get_cursor()
-        cur.execute('select nvl(max(log_num), 0) max_log_num from super_res_log')
-        self._max_log_num = cur.fetchone()[0]
-        self._close_cursor(cur)
-
-    def _mon_data_to_db(self, train_psnr_mon, train_loss_mon, valid_psnr_mon, valid_loss_mon, train_time):
-        '''
-        모니터링 대상(훈련 정확도, 훈련 손실 값, 검증 정확도, 검증 손실 값) DB로 저장
-        :param train_psnr_mon: 훈련 PSNR
-        :param train_loss_mon: 훈련 손실 값
-        :param valid_psnr_mon: 검증 PSNR
-        :param valid_loss_mon: 검증 손실 값
-        :return: None
-        '''
-        cur = self._get_cursor()
-        cur.execute('insert into super_res_log values(:log_num, :log_time, :train_time, :train_psnr, :valid_psnr, :train_loss, :valid_loss)',
-                    [self._max_log_num+1, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), train_time, train_psnr_mon, valid_psnr_mon, train_loss_mon, valid_loss_mon])
-        self._conn.commit()
-        self._close_cursor(cur)
-
     def train(self):
         '''
         신경망을 학습하는 함수
@@ -183,7 +118,7 @@ class Neuralnet:
             sess.run(tf.global_variables_initializer())
             self._saver = tf.train.Saver()
 
-            self._saver.restore(sess, self._FLAGS.trained_param_path)
+            # self._saver.restore(sess, self._FLAGS.trained_param_path)
 
             best_loss_val = np.infty  # 가장 좋은 loss 값을 저장하는 변수
             check_since_last_progress = 0  # early stopping 조건을 만족하지 않은 횟수
@@ -204,22 +139,26 @@ class Neuralnet:
                     train_x, train_y = self._data_loading(train_file)
                     for idx in range(0, 100, self._FLAGS.batch_size):
                         s_batch_time = time.time()
-                        train_psnr, train_loss, _ = self._model.train(train_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), train_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
+                        train_psnr, train_loss, _ = self._model.train(train_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1),
+                                                                      train_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
                         tot_train_psnr_list.append(train_psnr)
                         tot_train_loss += train_loss / self._FLAGS.batch_size
                         e_batch_time = time.time()
-                        print('[Training] [' + str(int(idx / self._FLAGS.batch_size) + 1) + '/10] Epoch: ' + str(epoch) + ', PSNL: ' + str(train_psnr) + ', Loss: ' + str(train_loss) + ', Time(s): ' + str(round(e_batch_time - s_batch_time, 2)))
+                        print('[Training] [' + str(int(idx / self._FLAGS.batch_size) + 1) + '/10] Epoch: ' + str(epoch+1) +
+                              ', PSNL: ' + str(train_psnr) + ', Loss: ' + str(train_loss) + ', Time(s): ' + str(round(e_batch_time - s_batch_time, 2)))
 
                 # 검증 부분
                 for valid_file in self._tot_valid_file:
                     valid_x, valid_y = self._data_loading(valid_file)
                     for idx in range(0, 100, self._FLAGS.batch_size):
                         s_batch_time = time.time()
-                        valid_psnr, valid_loss = self._model.validation(valid_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), valid_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
+                        valid_psnr, valid_loss = self._model.validation(valid_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1),
+                                                                        valid_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
                         tot_valid_psnr_list.append(valid_psnr)
                         tot_valid_loss += valid_loss / self._FLAGS.batch_size
                         e_batch_time = time.time()
-                        print('[Validation] [' + str(int(idx / self._FLAGS.batch_size) + 1) + '/10] Epoch: ' + str(epoch) + ', PSNL: ' + str(train_psnr) + ', Loss: ' + str(train_loss) + ', Time(s): ' + str(round(e_batch_time - s_batch_time, 2)))
+                        print('[Validation] [' + str(int(idx / self._FLAGS.batch_size) + 1) + '/10] Epoch: ' + str(epoch+1) +
+                              ', PSNL: ' + str(valid_psnr) + ', Loss: ' + str(valid_loss) + ', Time(s): ' + str(round(e_batch_time - s_batch_time, 2)))
 
                 etime = time.time()
 
@@ -229,12 +168,13 @@ class Neuralnet:
                 valid_loss_mon = tot_valid_loss
                 train_time = etime - stime
 
-                print('epoch:', epoch + 1, ', train psnr:', round(train_psnr_mon, 2), ', train loss:', round(train_loss_mon, 2), ', validation psnr:', round(valid_psnr_mon, 2), ', validation loss:', round(valid_loss_mon, 2), ', train time:', round(train_time, 2))
+                print('epoch:', epoch + 1, ', train psnr:', round(train_psnr_mon, 2), ', train loss:', round(train_loss_mon, 2),
+                      ', validation psnr:', round(valid_psnr_mon, 2), ', validation loss:', round(valid_loss_mon, 2), ', train time:', round(train_time, 2))
 
                 if self.save_type == 'file':
-                    self._mon_data_to_file(train_psnr_mon, train_loss_mon, valid_psnr_mon, valid_loss_mon)
+                    self.db.mon_data_to_file(train_psnr_mon, train_loss_mon, valid_psnr_mon, valid_loss_mon)
                 else:
-                    self._mon_data_to_db(train_psnr_mon, train_loss_mon, valid_psnr_mon, valid_loss_mon, train_time)
+                    self.db.mon_data_to_db(train_psnr_mon, train_loss_mon, valid_psnr_mon, valid_loss_mon, train_time)
 
                 self.train_acc_mon.append(train_psnr_mon)
                 self.train_loss_mon.append(train_loss_mon)
@@ -266,17 +206,17 @@ class Neuralnet:
         if self._best_model_params:  # 가장 좋은 신경망의 파라미터 값을 Restore
             self._restore_model_params()
 
-        tot_test_psnr = 0.
+        tot_test_psnr_list = []
 
         for test_file in self._tot_test_file:
             test_x, test_y = self._data_loading(test_file)
             for idx in range(0, 100, self._FLAGS.batch_size):
-                psnr = self._model.get_psnr(test_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), test_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
-                tot_test_psnr = psnr / self._FLAGS.batch_size
+                test_psnr = self._model.get_psnr(test_x[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1), test_y[idx:idx+self._FLAGS.batch_size].reshape(-1, 64, 48, 1))
+                tot_test_psnr_list.append(test_psnr)
 
-        print('test psnr:', tot_test_psnr)
+        print('test psnr:', np.mean(np.array(tot_test_psnr_list), dtype=np.float64))
 
-        self._close_conn()
+        self.db.close_conn()
 
     def _create_patch_image(self, ori_img):
         '''
@@ -325,7 +265,7 @@ class Neuralnet:
         임의의 이미지에 대해 고해상도 이미지로 변환하는 함수
         :return: None
         '''
-        ori_img = Image.open(img_path)
+        ori_img = Image.open(img_path).convert('L')
         patches_data = self._create_patch_image(ori_img)
 
         tf.reset_default_graph()
@@ -341,9 +281,64 @@ class Neuralnet:
         predict_img = self._merge_super_resolution_image()
         predict_img.show()
 
-if __name__ == '__main__':
-    neuralnet = Neuralnet(is_train=True, save_type='db')
-    neuralnet.train()
+    def data_generation(self):
+        '''
+        신경망을 통해 새로운 고 해상도 이미지를 생성하고 저장하는 함수
+        :return: None
+        '''
+        tf.reset_default_graph()
 
+        with tf.Session() as sess:
+            self._model = Model(sess)
+
+            sess.run(tf.global_variables_initializer())
+            self._saver = tf.train.Saver()
+            self._saver.restore(sess, self._FLAGS.trained_param_path)
+
+            for img_path in self._get_file_path_list('D:\\Data\\casia_super_resolution\\1th_super_resolution\\non-cropped', []):
+                print(img_path)
+                ori_img = Image.open(img_path).convert('L')
+                patches_data = self._create_patch_image(ori_img)
+                self.logit = self._model.predict(patches_data.reshape(-1, 64, 48, 1))
+
+                predict_img = self._merge_super_resolution_image()
+                os.makedirs(os.path.join('D:\\Data\\casia_super_resolution\\2th_super_resolution\\non-cropped',
+                                         re.match('(.*non-cropped)\\\(.*)\\\.*\.bmp', img_path).groups()[1]),
+                            exist_ok=True)
+                predict_img.save(os.path.join('D:\\Data\\casia_super_resolution\\2th_super_resolution\\non-cropped',
+                                              re.match('(.*non-cropped)\\\(.*)', img_path).groups()[1]))
+
+    def _get_file_path_list(self, root_path, path_list):
+        '''
+        특정 폴더 밑에 있는 파일 경로를 리스트화하는 함수 (os.walk() 참조)
+        :param root_path: 파일이 포함된 상위 경로
+        :param path_list: 파일의 경로 정보를 담을 리스트
+        :param mode: 'F' -> (Full) 전체 이미지 폴더를 대상으로 파일 검출,  'E' -> (Edge), edge 와 non-edge 폴더를 대상으로 파일 검출
+        :return: 이미지 경로, type -> list
+        '''
+        for leaf_path in os.listdir(root_path):
+            full_path = os.path.join(root_path, leaf_path)
+            if os.path.isdir(full_path):
+                path_list = self._get_file_path_list(full_path, path_list)
+            elif os.path.isfile(full_path):
+                filename, ext = os.path.splitext(full_path)
+                if ext == '.bmp':
+                    img = Image.open(full_path)
+                    width, height = img.size
+                    if (width == 640) and (height == 480):
+                        path_list.append(full_path)
+        return path_list
+
+
+if __name__ == '__main__':
+    '''Training Part'''
+    # neuralnet = Neuralnet(is_train=True, save_type='db')
+    # neuralnet.train()
+
+    '''Test Part'''
+    neuralnet = Neuralnet(is_train=False)
+    neuralnet.predict('D:\\Data\\casia_super_resolution\\casia_blurring\\non-cropped\\device1\\0000\\0000_000_bilateral.bmp')
+
+    '''Data Generation Part'''
     # neuralnet = Neuralnet(is_train=False)
-    # neuralnet.predict('D:\\Data\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0008\\0008_001.bmp')
+    # neuralnet.data_generation()
