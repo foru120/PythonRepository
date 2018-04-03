@@ -117,7 +117,7 @@ class Neuralnet:
                 if epoch % 10 == 0:
                     os.makedirs(os.path.join('gogh_train_log', str(epoch).zfill(6)), exist_ok=True)
                     self._saver.save(sess, os.path.join(self._FLAGS.trained_param_path, str(epoch).zfill(6), 'image_processing_param.ckpt'))
-                    img = dcgan.generate(np.random.uniform(-1, 1, (self._FLAGS.batch_size, 100)))
+                    img = dcgan.generate(np.random.uniform(-1, 1, (self._FLAGS.batch_size, 100)), np.random.randn(self._FLAGS.batch_size, 96, 128, 32))
                     self.create_image(img, epoch, sess)
                     print('>> [Model & Image Saved] epoch: %d' % (epoch))
 

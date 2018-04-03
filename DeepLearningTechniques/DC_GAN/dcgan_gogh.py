@@ -3,6 +3,11 @@ import tensorlayer as tl
 from tensorlayer.layers import *
 
 class Generator:
+    '''
+        1. output layer 를 제외한 모든 구간에서 batch normalization 사용
+        2. output layer 를 제외한 모든 layer 의 activation function 은 ReLU 사용
+        3. output layer 의 입력값에 gaussian noise 추가
+    '''
     def __init__(self, depths, s_size=4):
         self.depths = depths + [3]
         self.s_size = s_size
@@ -52,6 +57,11 @@ class Generator:
         return layer
 
 class Discriminator:
+    '''
+        1. input layer 를 제외한 모든 구간에서 batch normalization 사용
+        2. 모든 layer 의 activation function 은 LeakyReLU 사용
+
+    '''
     def __init__(self, depths):
         self.depths = [3] + depths
         self.w_init = tf.random_normal_initializer(stddev=0.02)
@@ -143,7 +153,7 @@ class DCGAN:
         self.training = True
         return self.sess.run([self.d_losses, self.d_opt_op], feed_dict={self.batch_z: batch_z, self.noise: noise_z, self.train_x: train_x})
 
-    def generate(self, batch_z):
+    def generate(self, batch_z, noise_z):
         self.reuse = True
         self.training = False
-        return self.sess.run(self.g_logits, self.g_losses, self.d_losses, feed_dict={self.batch_z: batch_z})
+        return self.sess.run(self.g_logits, self.g_losses, self.d_losses, feed_dict={self.batch_z: batch_z, self.noise: noise_z})
