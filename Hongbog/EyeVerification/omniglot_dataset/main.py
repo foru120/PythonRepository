@@ -9,9 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import re
 
-from Hongbog.EyeVerification.model_v1 import Model
-from Hongbog.EyeVerification.database import Database
-from Hongbog.EyeVerification.dataloader import DataLoader
+from Hongbog.EyeVerification.omniglot_dataset.one_shot_model import Model
+from Hongbog.EyeVerification.omniglot_dataset.dataloader import DataLoader
 
 class Neuralnet:
     '''하이퍼파라미터 관련 변수'''
@@ -30,8 +29,10 @@ class Neuralnet:
         if (self.is_train == True) and (save_type == 'db'):  # data loading
             # self.db = Database(FLAGS=self._FLAGS, train_log=1)
             # self.db.init_database()
-            self.loader = DataLoader(batch_size=self._FLAGS.batch_size, train_right_root_path=self._FLAGS.train_right_root_path, test_right_root_path=self._FLAGS.test_right_root_path,
-                                     train_left_root_path=self._FLAGS.train_left_root_path, test_left_root_path=self._FLAGS.test_left_root_path)
+            self.train_loader = DataLoader(data_root_path=self._FLAGS.data_root_path, batch_size=self._FLAGS.batch_size,
+                                           n_way=self._FLAGS.n_way, k_shot=self._FLAGS.k_shot, train_mode=True)
+            self.eval_loader = DataLoader(data_root_path=self._FLAGS.data_root_path, batch_size=self._FLAGS.batch_size,
+                                          n_way=self._FLAGS.n_way, k_shot=self._FLAGS.k_shot, train_mode=False)
 
     def _flag_setting(self):
         '''
@@ -44,31 +45,29 @@ class Neuralnet:
         flags.DEFINE_string('test_right_root_path', 'D:\\100_dataset\\eye_verification\\eye_only_v2\\test\\right', '오른쪽 눈 테스트 데이터 경로')
         flags.DEFINE_string('train_left_root_path', 'D:\\100_dataset\\eye_verification\\eye_only_v2\\train\\left', '왼쪽 눈 학습 데이터 경로')
         flags.DEFINE_string('test_left_root_path', 'D:\\100_dataset\\eye_verification\\eye_only_v2\\test\\left', '왼쪽 눈 테스트 데이터 경로')
-        flags.DEFINE_integer('epochs', 120, '훈련시 에폭 수')
+        flags.DEFINE_string('data_root_path', 'D:\\100_dataset\\omniglot', '데이터 루트 경로')
+        flags.DEFINE_integer('epochs', 200, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 50, '훈련시 배치 크기')
+        flags.DEFINE_integer('n_way', 20, 'One-Shot Learning class 개수')
+        flags.DEFINE_integer('k_shot', 1, 'One-shot Learning sample 개수')
+        flags.DEFINE_float('lr', 1e-3, 'learning rate')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우(Early Stop Condition)')
         flags.DEFINE_string('trained_param_path',
-                            'D:/05_source/PythonRepository/Hongbog/EyeVerification/train_log/1th_test',
+                            'D:\\05_source\\PythonRepository\\Hongbog\\EyeVerification\\omniglot_dataset\\train_log\\1th_test',
                             '훈련된 파라미터 값 저장 경로')
         self.config = tf.ConfigProto(
             gpu_options=tf.GPUOptions(allow_growth=True, per_process_gpu_memory_fraction=1)
         )
 
     def train(self):
-        train_num = self.loader.train_right_x_len // self._FLAGS.batch_size
-        test_num = self.loader.test_right_x_len // self._FLAGS.batch_size
-        train_right_batch1, train_right_batch2, train_right_batch3, train_right_batch4, train_right_batch5, train_right_batch6,\
-        train_left_batch1, train_left_batch2, train_left_batch3, train_left_batch4, train_left_batch5, train_left_batch6 = self.loader.train_loader()
-        test_right_batch, test_left_batch = self.loader.test_loader()
-
         with tf.Session(config=self.config) as sess:
-            right_model = Model(sess=sess, name='right', training=self.is_train)
-            left_model = Model(sess=sess, name='left', training=self.is_train)
+            model = Model(sess=sess, name='one-shot', batch_size=self._FLAGS.batch_size, n_way=self._FLAGS.n_way,
+                          k_shot=self._FLAGS.k_shot, training=True, use_fce=True, lr=self._FLAGS.lr)
 
             print('>> Tensorflow session built. Variables initialized.')
             sess.run(tf.global_variables_initializer())
 
-            self._saver = tf.train.Saver()
+            self._saver = tf.train.Saver(max_to_keep=10)
 
             # ckpt_st = tf.train.get_checkpoint_state(os.path.join(self._FLAGS.trained_param_path, '000001'))
 
@@ -80,118 +79,31 @@ class Neuralnet:
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
             print('>> Running started.')
 
-            epoch = 1
-
             for epoch in range(1, self._FLAGS.epochs+1):
-                tot_train_right_acc, tot_train_right_loss = [], []
-                tot_train_left_acc, tot_train_left_loss = [], []
-                tot_test_right_acc, tot_test_right_loss = [],[]
-                tot_test_left_acc, tot_test_left_loss = [], []
-
-                if epoch % 50 == 0:
-                    right_model.learning_rate /= 2
-                    left_model.learning_rate /= 2
-
+                '''Model Train'''
+                correct = []
                 train_st = time.time()
-                for step in range(1, train_num+1):
-                    '''Data Loading - (right, left 300 개씩)'''
-                    right_train_data_01, right_train_data_02, right_train_data_03, right_train_data_04, right_train_data_05, right_train_data_06,\
-                    left_train_data_01, left_train_data_02, left_train_data_03, left_train_data_04, left_train_data_05, left_train_data_06 = sess.run([train_right_batch1, train_right_batch2, train_right_batch3, train_right_batch4, train_right_batch5, train_right_batch6,
-                                                                                                                                                       train_left_batch1, train_left_batch2, train_left_batch3, train_left_batch4, train_left_batch5, train_left_batch6])
-                    train_right_batch_x = np.concatenate([right_train_data_01[0], right_train_data_02[0], right_train_data_03[0], right_train_data_04[0], right_train_data_05[0], right_train_data_06[0]])
-                    train_right_batch_y = np.concatenate([right_train_data_01[1], right_train_data_02[1], right_train_data_03[1], right_train_data_04[1], right_train_data_05[1], right_train_data_06[1]])
-                    train_left_batch_x = np.concatenate([left_train_data_01[0], left_train_data_02[0], left_train_data_03[0], left_train_data_04[0], left_train_data_05[0], left_train_data_06[0]])
-                    train_left_batch_y = np.concatenate([left_train_data_01[1], left_train_data_02[1], left_train_data_03[1], left_train_data_04[1], left_train_data_05[1], left_train_data_06[1]])
+                for step in range(1, self.train_loader.iters+1):
+                    x_set, y_set, x_hat, y_hat = self.train_loader.next_batch()
+                    logits, prediction, loss, _ = model.train(x_set, y_set, x_hat, y_hat)
+                    correct.append(np.equal(prediction, y_hat))
 
-                    '''Model Train'''
-                    st = time.time()
-                    step_train_right_acc, step_train_right_loss = [], []
-                    for idx in range(0, 300, self._FLAGS.batch_size):
-                        train_right_acc, train_right_loss, _ = right_model.train(train_right_batch_x[idx:idx+self._FLAGS.batch_size], train_right_batch_y[idx:idx+self._FLAGS.batch_size])
-                        step_train_right_acc.append(train_right_acc)
-                        step_train_right_loss.append(train_right_loss)
-                        tot_train_right_acc.append(train_right_acc)
-                        tot_train_right_loss.append(train_right_loss)
-
-                    step_train_left_acc, step_train_left_loss = [], []
-                    for idx in range(0, 300, self._FLAGS.batch_size):
-                        train_left_acc, train_left_loss, _ = left_model.train(train_left_batch_x[idx:idx+self._FLAGS.batch_size], train_left_batch_y[idx:idx+self._FLAGS.batch_size])
-                        step_train_left_acc.append(train_left_acc)
-                        step_train_left_loss.append(train_left_loss)
-                        tot_train_left_acc.append(train_left_acc)
-                        tot_train_left_loss.append(train_left_loss)
-                    et = time.time()
-
-                    step_train_right_acc = float(np.mean(np.array(step_train_right_acc)))
-                    step_train_right_loss = float(np.mean(np.array(step_train_right_loss)))
-                    step_train_left_acc = float(np.mean(np.array(step_train_left_acc)))
-                    step_train_left_loss = float(np.mean(np.array(step_train_left_loss)))
-                    print(">> [Step-Train] epoch/step: [%d/%d], [Right]Accuracy: %.6f, [Left]Accuracy: %.6f, [Right]Loss: %.6f, [Left]Loss: %.6f, step_time: %.2f"
-                          % (epoch, step, step_train_right_acc, step_train_left_acc, step_train_right_loss, step_train_left_loss, et - st))
+                    if step % 100 == 0:
+                        print('>> [Training-Step] epoch: %3d, step: %3d, loss: %.3f, acc: %.2f' % (epoch, step, loss, np.mean(np.equal(prediction, y_hat))*100))
                 train_et = time.time()
-                tot_train_time = train_et - train_st
+                print('>> [Training-Total] acc: %.2f, time: %.2f' % (np.mean(np.stack(correct)) * 100, train_et-train_st))
 
                 '''Model Test'''
-                right_prob, right_label = [], []
-                left_prob, left_label = [], []
-                ensemble_prob, ensemble_label = [], []
-                tot_ensemble_acc = []
-
-                for step in range(1, test_num + 1):
-                    right_test_data_01, left_test_data_01 = sess.run([test_right_batch, test_left_batch])
-                    test_right_batch_x, test_right_batch_y = right_test_data_01
-                    test_left_batch_x, test_left_batch_y = left_test_data_01
-
-                    test_right_acc, test_right_loss, test_right_prob = right_model.validation(test_right_batch_x, test_right_batch_y)
-                    test_left_acc, test_left_loss, test_left_prob = left_model.validation(test_left_batch_x, test_left_batch_y)
-
-                    '''Ensemble Prediction'''
-                    tot_ensemble_acc.append(np.sum(np.argmax(test_right_prob + test_left_prob, axis=1) == np.array(test_right_batch_y)) / self._FLAGS.batch_size)
-
-                    '''Monitoring'''
-                    tot_test_right_acc.append(test_right_acc)
-                    tot_test_right_loss.append(test_right_loss)
-                    tot_test_left_acc.append(test_left_acc)
-                    tot_test_left_loss.append(test_left_loss)
-
-                    '''Confusion Matrix'''
-                    right_prob.append(np.argmax(test_right_prob, axis=1).flatten().tolist())
-                    right_label.append(test_right_batch_y.flatten().tolist())
-                    left_prob.append(np.argmax(test_left_prob, axis=1).flatten().tolist())
-                    left_label.append(test_left_batch_y.flatten().tolist())
-                    ensemble_prob.append(np.argmax(test_right_prob + test_left_prob, axis=1).flatten().tolist())
-                    ensemble_label.append(test_right_batch_y.flatten().tolist())
-
-                tot_train_right_acc = float(np.mean(np.array(tot_train_right_acc)))
-                tot_train_right_loss = float(np.mean(np.array(tot_train_right_loss)))
-                tot_train_left_acc = float(np.mean(np.array(tot_train_left_acc)))
-                tot_train_left_loss = float(np.mean(np.array(tot_train_left_loss)))
-
-                tot_test_right_acc = float(np.mean(np.array(tot_test_right_acc)))
-                tot_test_right_loss = float(np.mean(np.array(tot_test_right_loss)))
-                tot_test_left_acc = float(np.mean(np.array(tot_test_left_acc)))
-                tot_test_left_loss = float(np.mean(np.array(tot_test_left_loss)))
-                tot_ensemble_acc = float(np.mean(np.array(tot_ensemble_acc)))
-
-                print('>> [Total-Train] epoch: [%d], [Right]Accuracy: %.6f, [Left]Accuracy: %.6f, [Right]Loss: %.6f, [Left]Loss: %.6f, time: %.2f'
-                      % (epoch, tot_train_right_acc, tot_train_left_acc, tot_train_right_loss, tot_train_left_loss, tot_train_time))
-                print('>> [Total-Test] epoch: [%d], [Right]Accuracy: %.6f, [Left]Accuracy: %.6f, [Ensemble]Accuracy: %.6f, [Right]Loss: %.6f, [Left]Loss: %.6f'
-                    % (epoch, tot_test_right_acc, tot_test_left_acc, tot_ensemble_acc, tot_test_right_loss, tot_test_left_loss))
-                print('>> [Right-Confusion-Matrix]')
-                print(sess.run(tf.confusion_matrix(labels=np.array(right_label).flatten(), predictions=np.array(right_prob).flatten(), num_classes=7)))
-                print('>> [Left-Confusion-Matrix]')
-                print(sess.run(tf.confusion_matrix(labels=np.array(left_label).flatten(), predictions=np.array(left_prob).flatten(), num_classes=7)))
-                print('>> [Ensemble-Confusion-Matrix]')
-                print(sess.run(tf.confusion_matrix(labels=np.array(ensemble_label).flatten(), predictions=np.array(ensemble_prob).flatten(), num_classes=7)))
-
-                # self.db.mon_data_to_db(epoch, tot_train_acc, tot_test_acc, tot_train_loss, tot_test_loss, tot_train_time, tot_test_time)
-
-                # kernel = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'right/output_layer/logit/W_conv2d')[0]
-                # print(sess.run(kernel))
+                correct = []
+                for step in range(1, self.eval_loader.iters+1):
+                    x_set, y_set, x_hat, y_hat = self.eval_loader.next_batch()
+                    logits, prediction = model.test(x_set, y_set, x_hat)
+                    correct.append(np.equal(prediction, y_hat))
+                print('>> [Evaluation] acc: %.2f' % (np.mean(np.stack(correct)) * 100))
 
                 ## Save model
                 os.makedirs(os.path.join(self._FLAGS.trained_param_path), exist_ok=True)
-                self._saver.save(sess, os.path.join(self._FLAGS.trained_param_path, 'eye_verification_param'), global_step=epoch)
+                self._saver.save(sess, os.path.join(self._FLAGS.trained_param_path, 'one_shot_param'), global_step=epoch)
                 print('>> [Model saved] epoch: %d' % (epoch))
 
             coord.request_stop()
@@ -417,10 +329,7 @@ class Neuralnet:
             ensemble_pred = Counter(ensemble_pred)
             print(ensemble_pred.most_common(1)[0][0])
 
-neuralnet = Neuralnet(is_train=False, save_type='db')
+neuralnet = Neuralnet(is_train=True, save_type='db')
+neuralnet.train()
 # neuralnet.cam_test()
-neuralnet.test()
-# neuralnet.train()
-
-# from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
-# print_tensors_in_checkpoint_file(file_name='D:\\05_source\\PythonRepository\\Hongbog\\EyeVerification\\train_log\\2th_test\\eye_verification_param-120', tensor_name='', all_tensors=True)
+# neuralnet.test()

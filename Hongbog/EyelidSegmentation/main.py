@@ -49,7 +49,7 @@ class Neuralnet:
             print('Data loaded!!! - ' + str(round(etime - stime, 2)) + ' 초.')
 
             if save_type == 'db':
-                self.db = Database(self._FLAGS, 15)
+                self.db = Database(self._FLAGS, 16)
                 self.db.init_database()
 
     def _flag_setting(self):
@@ -60,10 +60,10 @@ class Neuralnet:
         flags = tf.app.flags
         self._FLAGS = flags.FLAGS
         flags.DEFINE_string('image_data_path', 'D:\\100_dataset\\casia_eyelid_segmentation\\image_data', '훈련 이미지 데이터 경로')
-        flags.DEFINE_integer('epochs', 200, '훈련시 에폭 수')
+        flags.DEFINE_integer('epochs', 300, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
-        flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우')
-        flags.DEFINE_string('trained_param_path', 'D:/05_source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0013/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
+        flags.DEFINE_integer('max_checks_without_progress', 100, '특정 횟수 만큼 조건이 만족하지 않은 경우')
+        flags.DEFINE_string('trained_param_path', 'D:/05_source/PythonRepository/Hongbog/EyelidSegmentation/train_log/0016/image_processing_param.ckpt', '훈련된 파라미터 값 저장 경로')
         flags.DEFINE_string('mon_data_log_path', 'D:/05_source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') + '.txt', '훈련시 모니터링 데이터 저장 경로')
         self.config = tf.ConfigProto(
             gpu_options=tf.GPUOptions(allow_growth=True, per_process_gpu_memory_fraction=0.7)
@@ -146,7 +146,7 @@ class Neuralnet:
                 # 훈련 부분
                 for idx in range(0, self._train_x.shape[0], self._FLAGS.batch_size):
                     train_x_batch, train_y_batch = self._train_x[idx:idx+self._FLAGS.batch_size, ], self._train_y[idx:idx+self._FLAGS.batch_size, ]
-                    if epoch+1 in (50, 75):  # dynamic learning rate
+                    if epoch+1 in (50, 150):  # dynamic learning rate
                         self._model.learning_rate = self._model.learning_rate/10
                     train_acc, train_loss, _ = self._model.train(train_x_batch.reshape(-1, 16, 16, 1), train_y_batch)
                     tot_train_loss += train_loss / len(train_x_batch)
@@ -341,7 +341,7 @@ if __name__ == '__main__':
 
     neuralnet = Neuralnet(is_train=False)
     # neuralnet.predict('D:\\111.bmp')
-    neuralnet.predict('D:\\100_dataset\\iris\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0035\\0035_000.bmp')
+    neuralnet.predict('D:\\100_dataset\\iris\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0040\\0040_000.bmp')
 
     # neuralnet = Neuralnet(is_train=False)
     # neuralnet.cam_predict('D:\\100_dataset\\iris\\CASIA\\CASIA-IrisV2\\CASIA-IrisV2\\device1\\0030\\0030_000.bmp')

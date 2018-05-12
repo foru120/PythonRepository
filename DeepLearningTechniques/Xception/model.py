@@ -109,7 +109,8 @@ def xception(inputs,
             logits = tf.squeeze(logits, [1, 2], name='block15_logits')  # Squeeze height and width only
             predictions = slim.softmax(logits, scope='Predictions')
 
-            end_points = slim.utils.convert_collection_to_dict(end_points_collection)
+            end_points = slim.utils.\
+                convert_collection_to_dict(end_points_collection)
             end_points['Logits'] = logits
             end_points['Predictions'] = predictions
 

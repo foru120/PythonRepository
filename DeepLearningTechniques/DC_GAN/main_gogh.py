@@ -109,7 +109,7 @@ class Neuralnet:
                     step_d_loss = step_d_loss / 1
                     et = time.time()
 
-                    print(">> [Training] epoch/step: [%d/%d], g_loss: %.6f, d_loss: %.6f, step_time: %.2f" % (
+                    print(">> [Training] epoch/step: [%d/%d], g_loss: %.6f, d_loss: %.6f, Step_Time: %.2f" % (
                         epoch, step, step_g_loss, step_d_loss, et-st))
 
                 eet = time.time()
