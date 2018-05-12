@@ -60,7 +60,7 @@ import DeepLearningTechniques.Mask_RCNN.pycocotools._mask as _mask
 #  iou(gt,dt) = area(intersect(gt,dt)) / area(union(gt,dt))
 # For "crowd" regions, we use a modified criteria. If a gt object is
 # marked as "iscrowd", we allow a dt to match any subregion of the gt.
-# Choosing gt' in the crowd gt that best matches the dt can be done using
+# Choosing gt' in the crowd gt that best_1st matches the dt can be done using
 # gt'=intersect(dt,gt). Since by definition union(gt',dt)=dt, computing
 #  iou(gt,dt,iscrowd) = iou(gt',dt) = area(intersect(gt,dt)) / area(dt)
 # For crowd gt regions we use this modified criteria above for the iou.

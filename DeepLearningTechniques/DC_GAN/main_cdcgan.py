@@ -27,7 +27,7 @@ class Neuralnet:
         self._flag_setting()  # flag setting
 
         if (is_train == True) and (save_type == 'db'):  # data loading
-            self.db = Database(FLAGS=self._FLAGS, train_log=1)
+            self.db = Database(FLAGS=self._FLAGS, train_log=2)
             self.db.init_database()
             self.loader = DataLoader(batch_size=self._FLAGS.batch_size, train_data_path=self._FLAGS.train_data_path)
 
@@ -38,24 +38,24 @@ class Neuralnet:
         '''
         flags = tf.app.flags
         self._FLAGS = flags.FLAGS
-        flags.DEFINE_string('train_data_path', 'D:/100_dataset/celeba', '학습 데이터 경로')
+        flags.DEFINE_string('train_data_path', 'D:/Data/celeba/img/test', '학습 데이터 경로')
         flags.DEFINE_integer('epochs', 100, '훈련시 에폭 수')
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우(Early Stop Condition)')
         flags.DEFINE_string('trained_param_path',
-                            'D:/05_source/PythonRepository/DeepLearningTechniques/DC_GAN/gogh_train_log/2th_test',
+                            'D:/Source/PythonRepository/DeepLearningTechniques/DC_GAN/train_log/3th_test',
                             '훈련된 파라미터 값 저장 경로')
         self.config = tf.ConfigProto(
             gpu_options=tf.GPUOptions(allow_growth=True, per_process_gpu_memory_fraction=1)
         )
 
-    def create_image(self, images, epoch, sess):
+    def create_image(self, images, epoch, sess, name):
         images = tf.image.convert_image_dtype(tf.transpose(tf.div(tf.add(images[np.random.permutation(self._FLAGS.batch_size)[:10]], 1.0), 2.0), perm=[0, 2, 1, 3]), tf.uint8)
         images = [image for image in tf.split(images, 10, axis=0)]
 
         for idx in range(0, len(images)):
-            os.makedirs(os.path.join('gogh_gen_image', '2th_test', str(epoch)), exist_ok=True)
-            with open('gogh_gen_image\\2th_test\\' + str(epoch) + '\\' + str(idx) + '.jpeg', mode='wb') as f:
+            os.makedirs(os.path.join('gen_image', '3th_test', str(epoch), name), exist_ok=True)
+            with open(os.path.join('gen_image', '3th_test', str(epoch), name, str(idx) + '.jpeg'), mode='wb') as f:
                 f.write(sess.run(tf.image.encode_jpeg(tf.squeeze(images[idx], [0]))))
 
     def train(self):
@@ -81,7 +81,7 @@ class Neuralnet:
             print('>> Running started')
 
             while True:
-                tot_g_loss, tot_d_loss = 0., 0.
+                tot_g1_loss, tot_g2_loss, tot_d_loss = 0., 0., 0.
                 sst = time.time()
 
                 for step in range(num_train):
@@ -90,32 +90,36 @@ class Neuralnet:
                     train_data = sess.run(train_x)
 
                     step_d_loss = 0.
-                    for _ in range(2):
+                    for _ in range(1):
                         d_loss, _ = dcgan.d_train(batch_z, train_data)
                         tot_d_loss += d_loss
                         step_d_loss += d_loss
 
-                    step_g_loss = 0.
+                    step_g1_loss, step_g2_loss = 0., 0.
                     for _ in range(1):
-                        g_loss, _ = dcgan.g_train(batch_z)
-                        tot_g_loss += g_loss
-                        step_g_loss += g_loss
+                        g1_loss, g2_loss, _, _, _, _ = dcgan.g_train(batch_z)
+                        tot_g1_loss += g1_loss
+                        step_g1_loss += g1_loss
+                        tot_g2_loss += g2_loss
+                        step_g2_loss += g2_loss
 
-                    step_g_loss = step_g_loss / 1
-                    step_d_loss = step_d_loss / 2
+                    step_g1_loss = step_g1_loss / 1
+                    step_g2_loss = step_g2_loss / 1
+                    step_d_loss = step_d_loss / 1
                     et = time.time()
 
-                    print(">> [Training] epoch/step: [%d/%d], g_loss: %.6f, d_loss: %.6f, step_time: %.2f" % (
-                        epoch, step, step_g_loss, step_d_loss, et-st))
+                    print(">> [Training] epoch/step: [%d/%d], g1_loss: %.6f, g2_loss: %.6f, d_loss: %.6f, step_time: %.2f" % (
+                        epoch, step, step_g1_loss, step_g2_loss, step_d_loss, et-st))
 
                 eet = time.time()
-                self.db.mon_data_to_db(epoch, tot_g_loss, tot_d_loss, eet-sst)
+                self.db.mon_data_to_db(epoch, tot_g1_loss, tot_g2_loss, tot_d_loss, eet-sst)
 
                 if epoch % 10 == 0:
-                    os.makedirs(os.path.join('gogh_train_log/2th_test', str(epoch).zfill(6)), exist_ok=True)
+                    os.makedirs(os.path.join('train_log/3th_test', str(epoch).zfill(6)), exist_ok=True)
                     self._saver.save(sess, os.path.join(self._FLAGS.trained_param_path, str(epoch).zfill(6), 'image_processing_param.ckpt'))
-                    img = dcgan.generate(np.random.normal(size=(self._FLAGS.batch_size, 100)))
-                    self.create_image(img, epoch, sess)
+                    g1_img, g2_img = dcgan.generate(np.random.normal(size=(self._FLAGS.batch_size, 100)))
+                    self.create_image(g1_img, epoch, sess, 'g1')
+                    self.create_image(g2_img, epoch, sess, 'g2')
                     print('>> [Model & Image Saved] epoch: %d' % (epoch))
 
                 epoch += 1

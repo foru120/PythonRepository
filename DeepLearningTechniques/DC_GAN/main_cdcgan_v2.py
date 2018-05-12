@@ -4,16 +4,14 @@ import numpy as np
 import tensorflow as tf
 import os
 from collections import deque
-from PIL import Image
 
-from DeepLearningTechniques.DC_GAN.dcgan_gogh import DCGAN
+from DeepLearningTechniques.DC_GAN.cdcgan import CDCGAN
 from DeepLearningTechniques.DC_GAN.database import Database
 from DeepLearningTechniques.DC_GAN.dataloader import DataLoader
 
 class Neuralnet:
     '''하이퍼파라미터 관련 변수'''
     _FLAGS = None
-
 
     '''훈련시 필요한 변수'''
     _model = None
@@ -45,20 +43,19 @@ class Neuralnet:
         flags.DEFINE_integer('batch_size', 100, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우(Early Stop Condition)')
         flags.DEFINE_string('trained_param_path',
-                            'D:/Source/PythonRepository/DeepLearningTechniques/DC_GAN/train_log',
+                            'D:/Source/PythonRepository/DeepLearningTechniques/DC_GAN/train_log/3th_test',
                             '훈련된 파라미터 값 저장 경로')
-
         self.config = tf.ConfigProto(
             gpu_options=tf.GPUOptions(allow_growth=True, per_process_gpu_memory_fraction=1)
         )
 
-    def create_image(self, images, epoch, sess):
+    def create_image(self, images, epoch, sess, name):
         images = tf.image.convert_image_dtype(tf.transpose(tf.div(tf.add(images[np.random.permutation(self._FLAGS.batch_size)[:10]], 1.0), 2.0), perm=[0, 2, 1, 3]), tf.uint8)
         images = [image for image in tf.split(images, 10, axis=0)]
 
         for idx in range(0, len(images)):
-            os.makedirs(os.path.join('gen_image', '1th_test', str(epoch)), exist_ok=True)
-            with open('gen_image\\1th_test\\' + str(epoch) + '\\' + str(idx) + '.jpeg', mode='wb') as f:
+            os.makedirs(os.path.join('gen_image', '3th_test', str(epoch), name), exist_ok=True)
+            with open(os.path.join('gen_image', '3th_test', str(epoch), name, str(idx) + '.jpeg'), mode='wb') as f:
                 f.write(sess.run(tf.image.encode_jpeg(tf.squeeze(images[idx], [0]))))
 
     def train(self):
@@ -67,7 +64,7 @@ class Neuralnet:
         epoch = 1
 
         with tf.Session(config=self.config) as sess:
-            dcgan = DCGAN(sess=sess, batch_size=self._FLAGS.batch_size)
+            dcgan = CDCGAN(sess=sess, batch_size=self._FLAGS.batch_size)
 
             print('>> Tensorflow session built. Variables initialized')
             sess.run(tf.global_variables_initializer())
@@ -84,13 +81,12 @@ class Neuralnet:
             print('>> Running started')
 
             while True:
-                tot_g_loss, tot_d_loss = 0., 0.
+                tot_g1_loss, tot_g2_loss, tot_d_loss = 0., 0., 0.
                 sst = time.time()
 
                 for step in range(num_train):
                     st = time.time()
                     batch_z = np.random.normal(size=(self._FLAGS.batch_size, 100))
-                    # noise_z = np.random.normal(size=(self._FLAGS.batch_size, 96, 128, 32))
                     train_data = sess.run(train_x)
 
                     step_d_loss = 0.
@@ -99,27 +95,31 @@ class Neuralnet:
                         tot_d_loss += d_loss
                         step_d_loss += d_loss
 
-                    step_g_loss = 0.
-                    for _ in range(2):
-                        g_loss, _ = dcgan.g_train(batch_z)
-                        tot_g_loss += g_loss
-                        step_g_loss += g_loss
+                    step_g1_loss, step_g2_loss = 0., 0.
+                    for _ in range(1):
+                        g1_loss, g2_loss, _, _, _, _ = dcgan.g_train(batch_z)
+                        tot_g1_loss += g1_loss
+                        step_g1_loss += g1_loss
+                        tot_g2_loss += g2_loss
+                        step_g2_loss += g2_loss
 
-                    step_g_loss = step_g_loss / 2
+                    step_g1_loss = step_g1_loss / 1
+                    step_g2_loss = step_g2_loss / 1
                     step_d_loss = step_d_loss / 1
                     et = time.time()
 
-                    print(">> [Training] epoch/step: [%d/%d], g_loss: %.6f, d_loss: %.6f, step_time: %.2f" % (
-                        epoch, step, step_g_loss, step_d_loss, et-st))
+                    print(">> [Training] epoch/step: [%d/%d], g1_loss: %.6f, g2_loss: %.6f, d_loss: %.6f, step_time: %.2f" % (
+                        epoch, step, step_g1_loss, step_g2_loss, step_d_loss, et-st))
 
                 eet = time.time()
-                self.db.mon_data_to_db(epoch, tot_g_loss, tot_d_loss, eet-sst)
+                self.db.mon_data_to_db(epoch, tot_g1_loss, tot_g2_loss, tot_d_loss, eet-sst)
 
                 if epoch % 10 == 0:
-                    os.makedirs(os.path.join('train_log', str(epoch).zfill(6)), exist_ok=True)
+                    os.makedirs(os.path.join('train_log/3th_test', str(epoch).zfill(6)), exist_ok=True)
                     self._saver.save(sess, os.path.join(self._FLAGS.trained_param_path, str(epoch).zfill(6), 'image_processing_param.ckpt'))
-                    img = dcgan.generate(np.random.normal(size=(self._FLAGS.batch_size, 100))) # , np.random.randn(self._FLAGS.batch_size, 96, 128, 32)
-                    self.create_image(img, epoch, sess)
+                    g1_img, g2_img = dcgan.generate(np.random.normal(size=(self._FLAGS.batch_size, 100)))
+                    self.create_image(g1_img, epoch, sess, 'g1')
+                    self.create_image(g2_img, epoch, sess, 'g2')
                     print('>> [Model & Image Saved] epoch: %d' % (epoch))
 
                 epoch += 1

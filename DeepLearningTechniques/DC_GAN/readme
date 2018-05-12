@@ -1,0 +1,16 @@
+▣ 1th_test
+ - Basic DCGAN
+ - Generator : 1개, Deconv Layers
+ - Discriminator : 1개, Conv Layers
+
+▣ 2th_test
+ - Basic DCGAN + Competive Generator
+ - Generator : 2개, Deconv Layers, 1번
+ - Discriminator : 1개, Conv Layers, 2번
+ - cdcgan_log : 1
+
+▣ 3th_test
+ - Basic DCGAN + Competive Generator
+ - Generator : 2개, Deconv Layers, 1번
+ - Discriminator : 1개, Conv Layers, 1번
+ - cdcgan_log : 2

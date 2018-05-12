@@ -1,0 +1,150 @@
+■ 2th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.identity() 설정
+ - batch_size: 16
+ - hidden_num: 48
+ - 이미지 크기: (192, 256)
+
+■ 3th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.tanh() 설정
+ - batch_size: 16
+ - hidden_num: 64
+ - 이미지 크기: (192, 256)
+
+■ 4th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.identity() 설정
+ - batch_size: 16
+ - hidden_num: 64
+ - 이미지 크기: (128, 128)
+
+■ 5th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.identity() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - carry + skip connection
+ - hidden_num: 64
+ - 이미지 크기: (128, 128)
+
+■ 6th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.identity() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - carry + skip connection
+ - hidden_num: 80
+ - 이미지 크기: (128, 128)
+
+■ 7th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.identity() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - carry + skip connection (각 deconvolution 시 마다 수행)
+ - hidden_num: 128
+ - 이미지 크기: (64, 64)
+
+■ 8th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.identity() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - carry + skip connection (각 deconvolution 시 마다 수행, 첫 번째 Layer 는 생략)
+ - hidden_num: 80
+ - 이미지 크기: (128, 128)
+
+■ 9th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.elu() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - carry + skip connection (각 deconvolution 시 마다 수행, 첫 번째 Layer 는 생략)
+ - hidden_num: 80
+ - 이미지 크기: (128, 128)
+
+■ 10th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.elu() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - dense block + skip connection (마지막 deconvolution 계층에 추가)
+ - hidden_num: 40
+ - growthRate: 10, n: 3 (DenseBlock 관련 파라미터)
+ - 이미지 크기: (128, 128)
+
+■ 11th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.elu() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - dense block + skip connection (마지막 deconvolution 계층에 추가)
+ - hidden_num: 40
+ - growthRate: 10, n: 3 (DenseBlock 관련 파라미터)
+ - 이미지 크기: (128, 128)
+ - 전체 tensorflow 소스로 변경
+
+■ 12th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.identity() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - dense block
+ - hidden_num: 40
+ - growthRate: 10, n: 3 (DenseBlock 관련 파라미터)
+ - 이미지 크기: (128, 128)
+ - 전체 tensorflow 소스로 변경
+
+■ 13th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.tanh() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - dense block
+ - hidden_num: 40
+ - growthRate: 10, n: 3 (DenseBlock 관련 파라미터)
+ - 이미지 크기: (128, 128)
+ - 전체 tensorflow 소스로 변경
+
+■ 14th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.elu() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - dense block
+ - hidden_num: 40
+ - growthRate: 10, n: 3 (DenseBlock 관련 파라미터)
+ - 이미지 크기: (128, 128)
+ - 전체 tensorflow 소스로 변경
+
+■ 15th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.elu() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - dense block
+ - hidden_num: 40
+ - growthRate: 10, n: 3 (DenseBlock 관련 파라미터)
+ - 이미지 크기: (128, 128)
+ - batch_norm 제거
+ - 전체 tensorflow 소스로 변경
+
+■ 16th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.elu() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - dense block + skip connection (마지막 deconvolution 계층에 추가)
+ - hidden_num: 40
+ - growthRate: 10, n: 3 (DenseBlock 관련 파라미터)
+ - 이미지 크기: (128, 128)
+ - batch_norm 제거
+ - 전체 tensorflow 소스로 변경
+
+■ 17th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.elu() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - dense block + skip connection (마지막 deconvolution 계층에 추가)
+ - hidden_num: 40
+ - growthRate: 10, n: 3 (DenseBlock 관련 파라미터)
+ - 이미지 크기: (128, 128)
+ - batch_norm(updates_collections = None)
+ - 전체 tensorflow 소스로 변경
+
+■ 18th test
+ - Generator 와 Discriminator 의 마지막 출력 계층의 활성화 함수: tf.nn.elu() 설정
+ - batch_size: 16
+ - z-dim: 64
+ - residual block + skip connection (마지막 deconvolution 계층에 추가)
+ - hidden_num: 30
+ -
+ - 이미지 크기: (128, 128)
+ - batch_norm(updates_collections = None)
+ - 전체 tensorflow 소스로 변경

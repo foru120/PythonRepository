@@ -32,7 +32,7 @@ class Config(object):
     # Number of images to train with on each GPU. A 12GB GPU can typically
     # handle 2 images of 1024x1024px.
     # Adjust based on your GPU memory and image sizes. Use the highest
-    # number that your GPU can handle for best performance.
+    # number that your GPU can handle for best_1st performance.
     # GPU 당 IMAGE 개수
     IMAGES_PER_GPU = 2
 

@@ -595,7 +595,7 @@ def compute_ap(gt_boxes, gt_class_ids,
     pred_match = np.zeros([pred_boxes.shape[0]])
     gt_match = np.zeros([gt_boxes.shape[0]])
     for i in range(len(pred_boxes)):
-        # Find best matching ground truth box
+        # Find best_1st matching ground truth box
         sorted_ixs = np.argsort(overlaps[i])[::-1]
         for j in sorted_ixs:
             # If ground truth box is already matched, go to next one

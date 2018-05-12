@@ -6,8 +6,7 @@ import cx_Oracle
 import datetime
 
 class Monitoring:
-    train_g1loss_list = deque(maxlen=1000)
-    train_g2loss_list = deque(maxlen=1000)
+    train_gloss_list = deque(maxlen=1000)
     train_dloss_list = deque(maxlen=1000)
 
     def __init__(self, load_type, train_log):
@@ -23,10 +22,8 @@ class Monitoring:
         self.acc_subplot.set_title('Generator Loss')
         self.acc_subplot.set_xlim(0, 1000)
         self.acc_subplot.set_ylim(0, 3000)
-        self.g1 = Line2D([], [], color='black', label='g1_loss')
-        self.acc_subplot.add_line(self.g1)
-        self.g2 = Line2D([], [], color='orange', label='g2_loss')
-        self.acc_subplot.add_line(self.g2)
+        self.g = Line2D([], [], color='black', label='g1_loss')
+        self.acc_subplot.add_line(self.g)
         self.acc_subplot.legend()
 
         self.loss_subplot = plt.subplot(212)
@@ -72,20 +69,19 @@ class Monitoring:
 
     def _mon_data_from_db(self):
         cur = self._get_cursor()
-        cur.execute('select train_g1loss, train_g2loss, train_dloss from cdcgan_log where train_log = :log_num order by log_time', [self.train_log])
+        cur.execute('select train_gloss, train_dloss from dcgan_log where train_log = :log_num order by log_time', [self.train_log])
 
         mon_log = []
-        for train_g1loss, train_g2loss, train_dloss in cur.fetchall():
-            mon_log.append([train_g1loss, train_g2loss, train_dloss])
+        for train_gloss, train_dloss in cur.fetchall():
+            mon_log.append([train_gloss, train_dloss])
 
         mon_log_cnt = len(mon_log)
-        cur_mon_cnt = len(self.train_g1loss_list)
+        cur_mon_cnt = len(self.train_gloss_list)
 
         if (cur_mon_cnt == 0) or (mon_log_cnt > cur_mon_cnt):
             for log in mon_log[cur_mon_cnt:]:
-                train_g1loss, train_g2loss, train_dloss = log
-                self.train_g1loss_list.append(float(train_g1loss))
-                self.train_g2loss_list.append(float(train_g2loss))
+                train_gloss, train_dloss = log
+                self.train_gloss_list.append(float(train_gloss))
                 self.train_dloss_list.append(float(train_dloss))
 
     def _mon_data_from_file(self):
@@ -112,8 +108,7 @@ class Monitoring:
         else:
             self._mon_data_from_db()
 
-        self.g1.set_data([epoch for epoch in range(1, len(self.train_g1loss_list)+1)], self.train_g1loss_list)
-        self.g2.set_data([epoch for epoch in range(1, len(self.train_g2loss_list) + 1)], self.train_g2loss_list)
+        self.g.set_data([epoch for epoch in range(1, len(self.train_gloss_list)+1)], self.train_gloss_list)
         self.d.set_data([epoch for epoch in range(1, len(self.train_dloss_list)+1)], self.train_dloss_list)
 
-mon = Monitoring(load_type='db', train_log=2)
+mon = Monitoring(load_type='db', train_log=1)

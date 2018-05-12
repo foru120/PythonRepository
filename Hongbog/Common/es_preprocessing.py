@@ -7,7 +7,7 @@ import copy
 import cv2
 
 ORIGINAL_IMAGE_PATH = 'D:\\Data\\casia_original\\non-cropped'  # 분할 전 이미지 경로
-NEW_IMAGE_PATH = 'D:\\Data\\casia_preprocessing'  # 분할 후 이미지 경로
+NEW_IMAGE_PATH = 'D:\\Data\\casia_eyelid_segmentation\\use_data'  # 분할 후 이미지 경로
 GROUND_TRUTH_PATH = os.path.join(NEW_IMAGE_PATH, 'ground_truth.txt')  # ground truth 에 대한 이미지 번호 정보가 있는 파일 경로
 
 def get_file_path_list(root_path, path_list, mode):
@@ -53,7 +53,7 @@ def create_patch_image(root_folder, branch_folder, file_name, ori_path):
     :return: None
     '''
     x_pixel, y_pixel = 640, 480  # x_pixel, y_pixel: 입력 이미지 x축, y축 픽셀 값
-    x_delta, y_delta, img_cnt = 64, 48, 1  # x_delta, y_delta: 이미지 x축, y축 분할 단위, img_cnt: 이미지 순번을 위한 변수
+    x_delta, y_delta, img_cnt = 16, 16, 1  # x_delta, y_delta: 이미지 x축, y축 분할 단위, img_cnt: 이미지 순번을 위한 변수
 
     ori_img = Image.open(ori_path)  # rgb_im = im.convert('RGB')
     width, height = ori_img.size
@@ -92,13 +92,16 @@ def ground_truth_image_move():
     with open(GROUND_TRUTH_PATH) as file:
         for text in file:
             root_path, branch_path, leaf_path, file_nums = text.split()
-            for file_num in file_nums.split(','):
-                shutil.move(os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image', file_num + extension),
-                            os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'edge', file_num + extension))
-            for file_path in os.listdir(os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image')):
-                file_num = os.path.splitext(file_path)[0].split(os.path.sep)[-1]
-                shutil.move(os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'cropped-image', file_num + extension),
-                            os.path.join(NEW_IMAGE_PATH, root_path, branch_path, leaf_path, 'non-edge', file_num + extension))
+            try:
+                for file_num in file_nums.split(','):
+                    shutil.move(os.path.join(NEW_IMAGE_PATH, 'use_data', root_path, branch_path, leaf_path, 'cropped-image', file_num + extension),
+                                os.path.join(NEW_IMAGE_PATH, 'use_data', root_path, branch_path, leaf_path, 'edge', file_num + extension))
+                for file_path in os.listdir(os.path.join(NEW_IMAGE_PATH, 'use_data', root_path, branch_path, leaf_path, 'cropped-image')):
+                    file_num = os.path.splitext(file_path)[0].split(os.path.sep)[-1]
+                    shutil.move(os.path.join(NEW_IMAGE_PATH, 'use_data', root_path, branch_path, leaf_path, 'cropped-image', file_num + extension),
+                                os.path.join(NEW_IMAGE_PATH, 'use_data', root_path, branch_path, leaf_path, 'non-edge', file_num + extension))
+            except FileNotFoundError as ffe:
+                print(ffe)
 
 def image_gray_scale_extraction(img_path):
     '''
@@ -154,7 +157,7 @@ def image_to_data():
      2) image_to_data()
 '''
 
-# image_to_data()
+image_to_data()
 # ground_truth_image_move()
 # start_image_patching()
 
@@ -364,12 +367,12 @@ def point_count(edge_data):
 
 
 # predict = np.array([416, 417, 418, 419, 420, 452, 453, 454, 455, 462, 463, 464, 465, 466, 467, 468, 490, 491, 509, 510, 511, 512, 529, 554, 555, 568, 607, 633, 671, 672, 687, 688, 690, 691, 692, 710, 733, 734, 735, 736, 737, 739, 744, 746, 747, 779, 780, 781, 783, 784])
-predict = np.array([8, 11, 13, 14, 17, 20, 26, 30, 51, 52, 56, 59, 91, 94, 377, 420, 453, 454, 459, 460, 461, 462, 466, 491, 504, 505, 506, 530, 532, 547, 548, 585, 589, 591, 671, 692, 733, 753, 774, 775, 816, 817, 835, 855, 860, 861, 865, 904, 908, 909])
+# predict = np.array([8, 11, 13, 14, 17, 20, 26, 30, 51, 52, 56, 59, 91, 94, 377, 420, 453, 454, 459, 460, 461, 462, 466, 491, 504, 505, 506, 530, 532, 547, 548, 585, 589, 591, 671, 692, 733, 753, 774, 775, 816, 817, 835, 855, 860, 861, 865, 904, 908, 909])
 # predict = np.array([382, 383, 384, 417, 418, 419, 420, 421, 422, 423, 424, 425, 427, 428, 454, 455, 456, 457, 465, 466, 467, 469, 470, 493, 494, 496, 511, 512, 531, 532, 553, 570, 571, 594, 609, 648, 687, 692, 711, 730, 731, 748, 749, 750, 767, 768, 769, 772, 773, 774, 775, 776, 777, 778, 779, 783, 784, 785, 786, 787, 818, 819, 820, 821, 1188])
 # predict = np.array([68, 380, 381, 382, 383, 384, 385, 386, 416, 417, 418, 419, 426, 427, 428, 429, 430, 454, 455, 468, 471, 472, 492, 493, 514, 531, 572, 649, 651, 652, 653, 654, 655, 672, 696, 697, 698, 699, 700, 706, 708, 709, 710, 739, 740, 741, 742, 743, 744, 745, 746, 747, 748])
 # predict = np.array([15, 16, 66, 87, 113, 129, 333, 339, 340, 341, 371, 372, 377, 378, 379, 380, 382, 385, 414, 420, 427, 450, 510, 530, 571, 633, 634, 650, 652, 653, 654, 673, 674, 690, 695, 696, 697, 705, 706, 707, 708, 709, 710, 737, 738, 739, 740, 741, 742, 743, 744, 745, 750])
-edge_data = connected_edge(predict)
-point_count(edge_data)
+# edge_data = connected_edge(predict)
+# point_count(edge_data)
 
 
 '''

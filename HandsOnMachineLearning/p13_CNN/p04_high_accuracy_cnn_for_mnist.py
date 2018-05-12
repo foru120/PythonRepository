@@ -106,7 +106,7 @@ with tf.Session() as sess:
                     check_since_last_progress += 1
         acc_train = accuracy.eval(feed_dict={X: X_batch, y: y_batch})
         acc_val = accuracy.eval(feed_dict={X: mnist.validation.images, y: mnist.validation.labels})
-        print('Epoch {}, train accuracy: {:.4f}%, valid. accuracy: {:.4f}%, valid.. best loss: {:.6f}'.format(
+        print('Epoch {}, train accuracy: {:.4f}%, valid. accuracy: {:.4f}%, valid.. best_1st loss: {:.6f}'.format(
             epoch, acc_train * 100, acc_val * 100, best_loss_val))
         if check_since_last_progress > max_checks_without_progress:
             print('Early stopping!')

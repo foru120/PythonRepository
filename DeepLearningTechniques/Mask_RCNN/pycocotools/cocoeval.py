@@ -273,7 +273,7 @@ class COCOeval:
         if not len(ious)==0:
             for tind, t in enumerate(p.iouThrs):
                 for dind, d in enumerate(dt):
-                    # information about best match so far (m=-1 -> unmatched)
+                    # information about best_1st match so far (m=-1 -> unmatched)
                     iou = min([t,1-1e-10])
                     m   = -1
                     for gind, g in enumerate(gt):
@@ -286,7 +286,7 @@ class COCOeval:
                         # continue to next gt unless better match made
                         if ious[dind,gind] < iou:
                             continue
-                        # if match successful and best so far, store appropriately
+                        # if match successful and best_1st so far, store appropriately
                         iou=ious[dind,gind]
                         m=gind
                     # if match made store id of match for both dt and gt

@@ -20,7 +20,7 @@ class DataLoader:
     def train_setter(self, x_path):
         with tf.variable_scope('train_setter'):
             # img = tf.cast(tf.image.resize_images(tf.image.decode_png(tf.read_file(x_path), channels=3, name='image'), size=(192, 256)), tf.float32)
-            img = tf.cast(tf.image.resize_images(tf.transpose(tf.image.decode_png(tf.read_file(x_path), channels=3, name='image'), perm=[1, 0, 2]), size=(192, 256)), tf.float32)
+            img = tf.cast(tf.image.resize_images(tf.transpose(tf.image.decode_png(tf.read_file(x_path), channels=3, name='image'), perm=[1, 0, 2]), size=(128, 128)), tf.float32)
             scaled_img = tf.subtract(tf.divide(img, 127.5), 1)
 
         return scaled_img

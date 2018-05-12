@@ -36,7 +36,7 @@ class Database:
         '''
         self._conn.close()
 
-    def mon_data_to_db(self, epoch, train_g1loss_mon, train_g2loss_mon, train_dloss_mon, train_time):
+    def mon_data_to_db(self, epoch, step, train_g_loss_mon, train_dloss_mon, k_t, measure, train_time):
         '''
         모니터링 대상(훈련 PSNR, 훈련 손실 값, 검증 PSNR, 검증 손실 값) DB로 저장
         :param train_gloss_mon: Train Generator Loss
@@ -45,8 +45,8 @@ class Database:
         :return: None
         '''
         cur = self._get_cursor()
-        cur.execute('insert into cdcgan_log values(:train_log, :epoch, :log_time, :train_time, :train_g1loss, :train_g2loss, :train_dloss)',
-                    [self.train_log, epoch, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), train_time, train_g1loss_mon, train_g2loss_mon, train_dloss_mon])
+        cur.execute('insert into began_log values(:train_log, :epoch, :step, :log_time, :train_time, :train_gloss, :train_dloss, :k_t, :measure)',
+                    [self.train_log, epoch, step, datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), train_time, train_g_loss_mon, train_dloss_mon, k_t, measure])
         self._conn.commit()
         self._close_cursor(cur)
 

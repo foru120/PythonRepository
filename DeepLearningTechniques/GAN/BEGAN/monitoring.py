@@ -6,9 +6,10 @@ import cx_Oracle
 import datetime
 
 class Monitoring:
-    train_g1loss_list = deque(maxlen=1000)
-    train_g2loss_list = deque(maxlen=1000)
+    train_gloss_list = deque(maxlen=1000)
     train_dloss_list = deque(maxlen=1000)
+    train_kt_list = deque(maxlen=1000)
+    train_m_list = deque(maxlen=1000)
 
     def __init__(self, load_type, train_log):
         self.load_type = load_type
@@ -20,21 +21,23 @@ class Monitoring:
         f = plt.figure(figsize=(10, 8))
 
         self.acc_subplot = plt.subplot(211)
-        self.acc_subplot.set_title('Generator Loss')
+        self.acc_subplot.set_title('Generator/Discriminator Loss')
         self.acc_subplot.set_xlim(0, 1000)
-        self.acc_subplot.set_ylim(0, 3000)
-        self.g1 = Line2D([], [], color='black', label='g1_loss')
-        self.acc_subplot.add_line(self.g1)
-        self.g2 = Line2D([], [], color='orange', label='g2_loss')
-        self.acc_subplot.add_line(self.g2)
+        self.acc_subplot.set_ylim(0, 1)
+        self.g = Line2D([], [], color='blue', label='g_loss')
+        self.d = Line2D([], [], color='red', label='d_loss')
+        self.acc_subplot.add_line(self.g)
+        self.acc_subplot.add_line(self.d)
         self.acc_subplot.legend()
 
         self.loss_subplot = plt.subplot(212)
-        self.loss_subplot.set_title('Discriminator Loss')
+        self.loss_subplot.set_title('k_t/m Loss')
         self.loss_subplot.set_xlim(0, 1000)
-        self.loss_subplot.set_ylim(0, 2000)
-        self.d = Line2D([], [], color='blue', label='d_loss')
-        self.loss_subplot.add_line(self.d)
+        self.loss_subplot.set_ylim(0, 1)
+        self.k_t = Line2D([], [], color='blue', label='k_t')
+        self.m = Line2D([], [], color='red', label='m')
+        self.loss_subplot.add_line(self.k_t)
+        self.loss_subplot.add_line(self.m)
         self.loss_subplot.legend()
 
         ani = anim.FuncAnimation(f, self.update, interval=5000)
@@ -72,21 +75,22 @@ class Monitoring:
 
     def _mon_data_from_db(self):
         cur = self._get_cursor()
-        cur.execute('select train_g1loss, train_g2loss, train_dloss from cdcgan_log where train_log = :log_num order by log_time', [self.train_log])
+        cur.execute('select train_gloss, train_dloss, k_t, measure from began_log where train_log = :log_num order by log_time', [self.train_log])
 
         mon_log = []
-        for train_g1loss, train_g2loss, train_dloss in cur.fetchall():
-            mon_log.append([train_g1loss, train_g2loss, train_dloss])
+        for train_gloss, train_dloss, k_t, measure in cur.fetchall():
+            mon_log.append([train_gloss, train_dloss, k_t, measure])
 
         mon_log_cnt = len(mon_log)
-        cur_mon_cnt = len(self.train_g1loss_list)
+        cur_mon_cnt = len(self.train_gloss_list)
 
         if (cur_mon_cnt == 0) or (mon_log_cnt > cur_mon_cnt):
             for log in mon_log[cur_mon_cnt:]:
-                train_g1loss, train_g2loss, train_dloss = log
-                self.train_g1loss_list.append(float(train_g1loss))
-                self.train_g2loss_list.append(float(train_g2loss))
+                train_gloss, train_dloss, k_t, measure = log
+                self.train_gloss_list.append(float(train_gloss))
                 self.train_dloss_list.append(float(train_dloss))
+                self.train_kt_list.append(float(k_t))
+                self.train_m_list.append((float(measure)))
 
     def _mon_data_from_file(self):
         try:
@@ -112,8 +116,21 @@ class Monitoring:
         else:
             self._mon_data_from_db()
 
-        self.g1.set_data([epoch for epoch in range(1, len(self.train_g1loss_list)+1)], self.train_g1loss_list)
-        self.g2.set_data([epoch for epoch in range(1, len(self.train_g2loss_list) + 1)], self.train_g2loss_list)
+        self.g.set_data([epoch for epoch in range(1, len(self.train_gloss_list)+1)], self.train_gloss_list)
         self.d.set_data([epoch for epoch in range(1, len(self.train_dloss_list)+1)], self.train_dloss_list)
+        self.k_t.set_data([epoch for epoch in range(1, len(self.train_kt_list)+1)], self.train_kt_list)
+        self.m.set_data([epoch for epoch in range(1, len(self.train_m_list) + 1)], self.train_m_list)
 
-mon = Monitoring(load_type='db', train_log=2)
+mon = Monitoring(load_type='db', train_log=3)
+# import tensorflow as tf
+# from PIL import Image
+# img = tf.cast(tf.image.resize_images(tf.transpose(tf.image.decode_png(tf.read_file('D:\\Data\\celeba\\img\\img_align_celeba_png\\000002.png'), channels=3, name='image'), perm=[1, 0, 2]), size=(192, 256)), tf.float32)
+# img = tf.subtract(tf.divide(img, 127.5), 1)
+# img = tf.image.convert_image_dtype(tf.div(tf.add(img, 1), 2), tf.uint8)
+# img = tf.image.encode_jpeg(img)
+#
+# with tf.Session() as sess:
+#     tt = sess.run(img)
+#
+#     with open('D:\\aa.png', mode='wb') as f:
+#         f.write(tt)

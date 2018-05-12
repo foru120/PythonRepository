@@ -12,7 +12,6 @@ class Generator:
         self.depths = depths + [3]
         self.s_size = s_size
         self.output_size = [(3, 4), (6, 8), (12, 16), (24, 32), (48, 64), (96, 128), (192, 256)]
-        # self.output_size = [(3, 4), (6, 7), (12, 14), (23, 28), (45, 55), (89, 109), (178, 218)]
         self.w_init = tf.random_normal_initializer(stddev=0.02)
         self.gamma_init = tf.random_normal_initializer(1., 0.02)
         self.reuse = None
@@ -28,12 +27,13 @@ class Generator:
 
         def deconvolution(layer, name, idx):
             with tf.variable_scope(name):
+                layer = tl.layers.PadLayer(layer, padding=[[0, 0], [3, 3], [3, 3], [0, 0]], mode='REFLECT')
                 if idx == 6:
-                    layer = DeConv2d(layer, self.depths[idx], [5, 5], out_size=self.output_size[idx], strides=(2, 2),
-                                     padding='SAME', act=tf.identity, W_init=self.w_init, name='decond2d')
+                    layer = Conv2d(layer, n_filter=self.depths[idx], filter_size=(5, 5), strides=(1, 1), act=tf.identity, padding='SAME',
+                                   W_init=self.w_init, name='conv2d')
                 else:
-                    layer = DeConv2d(layer, self.depths[idx], [5, 5], out_size=self.output_size[idx], strides=(2, 2),
-                                     padding='SAME', act=tf.identity, W_init=self.w_init, name='decond2d')
+                    layer = Conv2d(layer, n_filter=self.depths[idx], filter_size=(5, 5), strides=(1, 1), act=tf.identity, padding='SAME',
+                                   W_init=self.w_init, name='conv2d')
                     layer = batch_norm(layer, 'batchnorm')
             return layer
 
