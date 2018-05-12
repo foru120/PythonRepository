@@ -121,4 +121,4 @@ class Monitoring:
         self.l1.set_data([epoch for epoch in range(1, len(self.train_loss_list)+1)], self.train_loss_list)
         self.l2.set_data([epoch for epoch in range(1, len(self.valid_loss_list)+1)], self.valid_loss_list)
 
-mon = Monitoring(load_type='db', train_log=15)
+mon = Monitoring(load_type='db', train_log=16)

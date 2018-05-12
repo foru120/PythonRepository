@@ -28,7 +28,6 @@ class Generator:
         def deconvolution(layer, name, idx):
             with tf.variable_scope(name):
                 if idx == 6:
-                    layer.outputs = tf.add(layer.outputs, noise)
                     layer = DeConv2d(layer, self.depths[idx], [5, 5], out_size=self.output_size[idx], strides=(2, 2),
                                      padding='SAME', act=tf.identity, W_init=self.w_init, name='decond2d')
                 else:
@@ -38,18 +37,63 @@ class Generator:
             return layer
 
         with tf.variable_scope('g', reuse=reuse):
-            with tf.variable_scope('input'):
-                layer = InputLayer(inputs, name='input')
-                layer = DenseLayer(layer, n_units=self.depths[0] * self.output_size[0][0] * self.output_size[0][1],
-                                   W_init=self.w_init, act=tf.identity, name='dense')
-                layer = ReshapeLayer(layer, shape=[-1, self.output_size[0][0], self.output_size[0][1], self.depths[0]], name='reshape')
-                layer = batch_norm(layer, 'batch_norm')
+            with tf.variable_scope('input_a'):
+                layer_a = InputLayer(inputs, name='input')
+                layer_a = DenseLayer(layer_a, n_units=self.depths[0] * self.output_size[0][0] * self.output_size[0][1], W_init=self.w_init, act=tf.identity, name='dense')
+                layer_a = ReshapeLayer(layer_a, shape=[-1, self.output_size[0][0], self.output_size[0][1], self.depths[0]], name='reshape')
+                layer_a = batch_norm(layer_a, 'batch_norm')
 
-            for i in range(1, len(self.depths)):
-                layer = deconvolution(layer, 'deconv'+str(i), i)
+            with tf.variable_scope('input_b'):
+                layer_b = InputLayer(inputs, name='input')
+                layer_b = DenseLayer(layer_b, n_units=self.depths[0] * self.output_size[0][0] * self.output_size[0][1], W_init=self.w_init, act=tf.identity, name='dense')
+                layer_b = ReshapeLayer(layer_b, shape=[-1, self.output_size[0][0], self.output_size[0][1], self.depths[0]], name='reshape')
+                layer_b = batch_norm(layer_b, 'batch_norm')
+
+            with tf.variable_scope('input_a'):
+                layer_a.outputs = tf.add(layer_a.outputs, layer_b.outputs)
+                layer_a = deconvolution(layer_a, 'deconv_a1', 1)
+
+            with tf.variable_scope('input_b'):
+                layer_b = deconvolution(layer_b, 'deconv_b1', 1)
+
+            with tf.variable_scope('input_b'):
+                layer_b.outputs = tf.add(layer_b.outputs, layer_a.outputs)
+                layer_b = deconvolution(layer_b, 'deconv_b2', 2)
+
+            with tf.variable_scope('input_a'):
+                layer_a = deconvolution(layer_a, 'deconv_a2', 2)
+
+            with tf.variable_scope('input_a'):
+                layer_a.outputs = tf.add(layer_a.outputs, layer_b.outputs)
+                layer_a = deconvolution(layer_a, 'deconv_a3', 3)
+
+            with tf.variable_scope('input_b'):
+                layer_b = deconvolution(layer_b, 'deconv_b3', 3)
+
+            with tf.variable_scope('input_b'):
+                layer_b.outputs = tf.add(layer_b.outputs, layer_a.outputs)
+                layer_b = deconvolution(layer_b, 'deconv_b4', 4)
+
+            with tf.variable_scope('input_a'):
+                layer_a = deconvolution(layer_a, 'deconv_a4', 4)
+
+            with tf.variable_scope('input_a'):
+                layer_a.outputs = tf.add(layer_a.outputs, layer_b.outputs)
+                layer_a = deconvolution(layer_a, 'deconv_a5', 5)
+
+            with tf.variable_scope('input_b'):
+                layer_b = deconvolution(layer_b, 'deconv_b5', 5)
+
+            with tf.variable_scope('input_b'):
+                layer_b.outputs = tf.add(layer_b.outputs, layer_a.outputs)
+                layer_b = deconvolution(layer_b, 'deconv_b6', 6)
+
+            with tf.variable_scope('input_a'):
+                layer_a = deconvolution(layer_a, 'deconv_a6', 6)
 
             with tf.variable_scope('tanh'):
-                layer = tf.nn.tanh(layer.outputs, 'g_output')
+                layer = tf.add(layer_a.outputs, layer_b.outputs)
+                layer = tf.nn.tanh(layer, 'g_output_a')
 
         self.variables = tl.layers.get_variables_with_name('g', True, True)
         # self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='g')
@@ -60,7 +104,6 @@ class Discriminator:
     '''
         1. input layer 를 제외한 모든 구간에서 batch normalization 사용
         2. 모든 layer 의 activation function 은 LeakyReLU 사용
-
     '''
     def __init__(self, depths):
         self.depths = [3] + depths
@@ -95,7 +138,7 @@ class Discriminator:
             with tf.variable_scope('classify'):
                 batch_size = layer.outputs.get_shape()[0].value
                 layer = ReshapeLayer(layer, shape=[batch_size, -1])
-                layer = DenseLayer(layer, n_units=2, W_init=self.w_init, act=tf.nn.softmax, name='d_output')
+                layer = DenseLayer(layer, n_units=2, W_init=self.w_init, act=tf.identity, name='d_output')
 
         self.variables = tl.layers.get_variables_with_name('d', True, True)
         # self.variables = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='d')
@@ -103,7 +146,7 @@ class Discriminator:
         return layer.outputs
 
 class DCGAN:
-    def __init__(self, sess, batch_size=100, z_dim=100, img_size=(178, 218), learning_rate=0.0004,
+    def __init__(self, sess, batch_size=100, z_dim=100, img_size=(178, 218), learning_rate=0.0002,
                  g_depths=[1024, 512, 256, 128, 64, 32], d_depths=[16, 32, 64, 128, 256, 512]):
         self.sess = sess
         self.batch_size = batch_size
@@ -119,11 +162,11 @@ class DCGAN:
     def _network(self):
         with tf.name_scope('initialize_step'):
             self.batch_z = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.z_dim], name='batch_z')
-            self.noise = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, 96, 128, 32], name='noise')
+            # self.noise = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, 96, 128, 32], name='noise')
             self.train_x = tf.placeholder(dtype=tf.float32, shape=[self.batch_size, self.img_size[0], self.img_size[1], 3], name='train_x')
 
         with tf.name_scope('dcgan_network'):
-            self.g_logits = self.g(self.batch_z, training=self.training, reuse=self.reuse, noise=self.noise)
+            self.g_logits = self.g(self.batch_z, training=self.training, reuse=self.reuse)
             self.d1_logits = self.d(self.g_logits, training=self.training, reuse=False, name='g')
             self.d2_logits = self.d(self.train_x, training=self.training, reuse=True, name='t')
 
@@ -138,22 +181,22 @@ class DCGAN:
 
         # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS, scope='update_ops')
         # with tf.control_dependencies(update_ops):
-        self.g_opt_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=0.5).minimize(self.g_losses, var_list=self.g.variables)
-        self.d_opt_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate*2, beta1=0.5).minimize(self.d_losses, var_list=self.d.variables)
+        self.g_opt_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate*2, beta1=0.5).minimize(self.g_losses, var_list=self.g.variables)
+        self.d_opt_op = tf.train.AdamOptimizer(learning_rate=self.learning_rate, beta1=0.5).minimize(self.d_losses, var_list=self.d.variables)
 
         # with tf.control_dependencies([self.g_opt_op, self.d_opt_op]):
         #     self.op = tf.no_op(name='train')
 
-    def g_train(self, batch_z, noise_z):
+    def g_train(self, batch_z):
         self.reuse = False
         self.training = True
-        return self.sess.run([self.g_losses, self.g_opt_op], feed_dict={self.batch_z: batch_z, self.noise: noise_z})
+        return self.sess.run([self.g_losses, self.g_opt_op], feed_dict={self.batch_z: batch_z})
 
-    def d_train(self, batch_z, noise_z, train_x):
+    def d_train(self, batch_z, train_x):
         self.training = True
-        return self.sess.run([self.d_losses, self.d_opt_op], feed_dict={self.batch_z: batch_z, self.noise: noise_z, self.train_x: train_x})
+        return self.sess.run([self.d_losses, self.d_opt_op], feed_dict={self.batch_z: batch_z, self.train_x: train_x})
 
-    def generate(self, batch_z, noise_z):
+    def generate(self, batch_z):
         self.reuse = True
         self.training = False
-        return self.sess.run(self.g_logits, self.g_losses, self.d_losses, feed_dict={self.batch_z: batch_z, self.noise: noise_z})
+        return self.sess.run(self.g_logits, feed_dict={self.batch_z: batch_z})
