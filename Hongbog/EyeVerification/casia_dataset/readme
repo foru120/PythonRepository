@@ -1,9 +1,0 @@
-■ 1th_test
- - casia dataset: 99 classes, eye dataset: 1 classes
- - epoch: 120
- - accuracy: 100%
-
-■ 2th_test
- - casia dataset: 1 classes, eye dataset: 1 classes
- - epoch: 120
- - accuracy: 100%

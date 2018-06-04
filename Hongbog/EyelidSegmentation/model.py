@@ -20,8 +20,9 @@ class Model:
             self.regularizer = l2_regularizer(1e-3)
 
         def _conv(l, kernel, channel, stride):
-            return conv2d(inputs=l, num_outputs=channel, kernel_size=kernel, stride=stride, padding='SAME', activation_fn=None,
-                          weights_initializer=variance_scaling_initializer(), biases_initializer=None, weights_regularizer=self.regularizer)
+            return conv2d(inputs=l, num_outputs=channel, kernel_size=kernel, stride=stride, padding='SAME',
+                          activation_fn=None, weights_initializer=variance_scaling_initializer(),
+                          biases_initializer=None, weights_regularizer=self.regularizer)
 
         def _batch_norm(inputs, scope):
             with tf.contrib.framework.arg_scope(
@@ -35,7 +36,7 @@ class Model:
                 scope=scope):
                 return batch_norm(inputs=inputs)
 
-        def _depthwise_separable_conv(layer, kernel, output, downsample=False, wm=1., scope=None):
+        def _depthwise_separable_conv(layer, kernel, output, downsample=False, wm=1.):
             _stride = [2, 2] if downsample else [1, 1]
             layer = separable_conv2d(inputs=layer, num_outputs=None, kernel_size=kernel,
                                      stride=_stride, depth_multiplier=wm, padding='SAME',
@@ -43,21 +44,19 @@ class Model:
                                      activation_fn=None, scope='depthwise_conv')
             layer = _batch_norm(inputs=layer, scope='dw_batch_norm')
             layer = tf.nn.elu(layer, 'dw_elu')
-            # layer = tf.nn.softplus(layer, 'dw_softplus')
+
             layer = conv2d(inputs=layer, num_outputs=output * wm, kernel_size=1,
                            weights_regularizer=self.regularizer, activation_fn=None, scope='pointwise_conv')
             layer = _batch_norm(inputs=layer, scope='pw_batch_norm')
             layer = tf.nn.elu(layer, 'pw_elu')
-            # layer = tf.nn.softplus(layer, 'pw_softplus')
 
             return layer
 
-        def _add_layer(name, l):
+        def _dense_block(name, l):
             with tf.variable_scope(name):
                 '''bottleneck layer (DenseNet-B)'''
                 c = _batch_norm(l, 'bottleneck_batch_norm')
                 c = tf.nn.elu(c, 'bottleneck')
-                # c = tf.nn.softplus(c, 'bottleneck')
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
                 c = _conv(c, 1, 4 * self.growthRate, 1)  # 4k, output
@@ -65,25 +64,19 @@ class Model:
                 '''basic dense layer'''
                 c = _batch_norm(inputs=c, scope='basic_batch_norm')
                 c = tf.nn.elu(c, 'basic_1')
-                # c = tf.nn.softplus(c, 'basic_1')
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
                 c = _depthwise_separable_conv(c, [3, 3], self.growthRate)
-                # c = _conv(c, 3, self.growthRate, 1)  # k, output
-                # c = _batch_norm(inputs=c, scope='basic_batch_norm_2')
-                # c = tf.nn.elu(c, 'basic_2')
                 c = dropout(inputs=c, keep_prob=self.dropout_rate, is_training=self.training)
 
                 l = tf.concat([c, l], axis=3)
             return l
 
-        def _add_transition(name, l):
+        def _transition_layer(name, l):
             with tf.variable_scope(name):
                 '''compression transition layer (DenseNet-C)'''
                 l = _batch_norm(inputs=l, scope='trasition_batch_norm')
                 l = tf.nn.elu(l, 'transition')
-                # l = tf.nn.softplus(l, 'transition')
-                # l = self._softx_func(l, 'transition')
                 l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
                 shape = l.get_shape().as_list()
                 in_channel = shape[3]
@@ -91,40 +84,37 @@ class Model:
                 l = avg_pool2d(inputs=l, kernel_size=[2, 2], stride=2, padding='SAME')
             return l
 
-        def dense_net():
+        def _network():
             l = _conv(self.X, 5, 16, 1)
 
             with tf.variable_scope('dense_block1'):
                 for i in range(self.N):
-                    l = _add_layer('dense_layer_{}'.format(i), l)
-                l = _add_transition('transition1', l)
+                    l = _dense_block('dense_layer_{}'.format(i), l)
+                l = _transition_layer('transition1', l)
 
             with tf.variable_scope('dense_block2'):
                 for i in range(self.N):
-                    l = _add_layer('dense_layer_{}'.format(i), l)
-                l = _add_transition('transition2', l)
+                    l = _dense_block('dense_layer_{}'.format(i), l)
+                l = _transition_layer('transition2', l)
 
             with tf.variable_scope('dense_block3'):
                 for i in range(self.N):
-                    l = _add_layer('dense_layer_{}'.format(i), l)
+                    l = _dense_block('dense_layer_{}'.format(i), l)
 
             l = batch_norm(inputs=l, decay=0.99, updates_collections=None, scale=True, is_training=self.training)
             l = tf.nn.elu(l, 'output')
-            # l = tf.nn.softplus(l, 'output')
-            # l = self._softx_func(l, 'output')
             l = avg_pool2d(inputs=l, kernel_size=[4, 4], stride=1, padding='VALID')
             l = tf.reshape(l, shape=[-1, 1*1*508])  # k=12, shape=(-1,256)
             l = dropout(inputs=l, keep_prob=self.dropout_rate, is_training=self.training)
             logits = fully_connected(inputs=l, num_outputs=2, activation_fn=None,
-                                     weights_initializer=variance_scaling_initializer(), weights_regularizer=self.regularizer)
+                                     weights_initializer=variance_scaling_initializer(),
+                                     weights_regularizer=self.regularizer)
 
             return logits
 
-        self.logits = dense_net()
+        self.logits = _network()
         self.prob = tf.nn.softmax(logits=self.logits, name='output')
         loss = self._focal_loss(alpha=0.3)
-        # loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=self.logits, labels=self.y)
-        # loss = tf.reduce_mean(loss, name='cross_entropy_loss')
         self.loss = tf.add_n([loss] + tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES), name='loss')
         self.optimizer = tf.train.GradientDescentOptimizer(learning_rate=self.learning_rate).minimize(self.loss)
         self.accuracy = tf.reduce_mean(tf.cast(tf.equal(tf.arg_max(self.logits, 1), self.y), dtype=tf.float64))
@@ -133,13 +123,15 @@ class Model:
         return self.sess.run(self.prob, feed_dict={self.X: x_test, self.training: False, self.dropout_rate: 1.0})
 
     def get_accuracy(self, x_test, y_test):
-        return self.sess.run(self.accuracy, feed_dict={self.X: x_test, self.y: y_test, self.training: False, self.dropout_rate: 1.0})
+        return self.sess.run(self.accuracy, feed_dict={self.X: x_test, self.y: y_test, self.training: False,
+                                                       self.dropout_rate: 1.0})
 
     def train(self, x_data, y_data):
-        return self.sess.run([self.accuracy, self.loss, self.optimizer], feed_dict={self.X: x_data, self.y: y_data,
-                                                                                    self.training: True, self.dropout_rate: 0.8})
+        return self.sess.run([self.accuracy, self.loss, self.optimizer],
+                             feed_dict={self.X: x_data, self.y: y_data, self.training: True, self.dropout_rate: 0.8})
     def validation(self, x_test, y_test):
-        return self.sess.run([self.accuracy, self.loss], feed_dict={self.X: x_test, self.y: y_test, self.training: False, self.dropout_rate: 1.0})
+        return self.sess.run([self.accuracy, self.loss],
+                             feed_dict={self.X: x_test, self.y: y_test, self.training: False, self.dropout_rate: 1.0})
 
     def _softx_func(self, x, name):
         with tf.variable_scope(name):

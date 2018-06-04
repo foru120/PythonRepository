@@ -1,0 +1,45 @@
+■ 1th test
+ - Architecture: Improved ResNet, Dense Block
+ - Epoch: 120
+ - Accuracy: 100 %
+ - Dataset: eye_only_v2
+
+■ 2th test
+ - Architecture: Inception-resnet-B, inception-resnet-C, Reduction-B (No Batch Normalization), Dense Block
+ - Epoch: 120
+ - Accuracy: 95
+ - Dataset: eye_only_v2
+
+■ 3th test
+ - Architecture: Improved ResNet
+ - Epoch: 120
+ - Accuracy: 100%
+ - Dataset: eye_only_v2
+
+■ 4_1th test
+ - Architecture: Improved ResNet + Multi-Scale Network
+ - Epoch: 120
+ - Accuracy: 100%
+ - Dataset: eye_only_v3
+ - Batch_norm: Exist
+
+■ 4_2th test
+ - Architecture: Improved ResNet + Multi-Scale Network
+ - Epoch: 120
+ - Accuracy: 100%
+ - Dataset: eye_only_v3
+ - Batch_norm: Non Exist
+
+■ 4_4th test
+ - Architecture: Improved ResNet + Multi-Scale Network, Tensorlayer
+ - Epoch: 120
+ - Accuracy: 100%
+ - Dataset: eye_only_v3
+ - Batch_norm: Non Exist
+
+■ 4_5th test
+ - Architecture: Improved ResNet + Multi-Scale Network, Tensorlayer
+ - Epoch: 120
+ - Accuracy: 100%
+ - Dataset: eye_only_v3
+ - Batch_norm: Exist

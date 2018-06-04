@@ -74,7 +74,8 @@ class Monitoring:
 
     def _mon_data_from_db(self):
         cur = self._get_cursor()
-        cur.execute('select train_acc, valid_acc, train_loss, valid_loss from eyelid_seg_log where train_log = :log_num order by log_time', [self.train_log])
+        cur.execute('select train_acc, valid_acc, train_loss, valid_loss from eyelid_seg_log where log_num = '
+                    ':log_num order by log_time', [self.train_log])
 
         mon_log = []
         for train_acc, valid_acc, train_loss, valid_loss in cur.fetchall():
@@ -95,7 +96,8 @@ class Monitoring:
         try:
             mon_log = []
 
-            with open('D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' + datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') +'.txt', 'r') as f:
+            with open('D:/Source/PythonRepository/Hongbog/EyelidSegmentation/mon_log/mon_' +
+                      datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S') +'.txt', 'r') as f:
                 mon_log = [log for log in f]
 
             mon_log_cnt = len(mon_log)

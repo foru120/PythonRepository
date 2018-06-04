@@ -1,9 +1,0 @@
-■ 1th_test
- - n_way: 20, k_shot: 1
- - epoch: 120
- - train-acc: 69.56%, eval-acc: 69.82%
-
-■ 2th_test
- - n_way: 20, k_shot: 1
- - epoch: 200
- - train-acc: 76.91%, eval-acc: 74.94%
