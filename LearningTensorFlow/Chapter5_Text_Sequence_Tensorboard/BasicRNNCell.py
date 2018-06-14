@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.examples.tutorials.mnist import input_data
-mnist = input_data.read_data_sets('D:\\Source\\PythonRepository\\LearningTensorFlow\\Chapter5_Text_Sequence_Tensorboard\\mnist_data', one_hot=True)
+mnist = input_data.read_data_sets('/home/kyh/PycharmProjects/PythonRepository/LearningTensorFlow/Chapter5_Text_Sequence_Tensorboard/mnist_data', one_hot=True)
 
 element_size = 28; time_steps = 28; num_classes = 10
 batch_size = 128; hidden_layer_size = 128
@@ -12,10 +12,12 @@ _inputs = tf.placeholder(tf.float32, shape=[None,
 y = tf.placeholder(tf.float32, shape=[None, num_classes], name='inputs')
 
 # 텐서플로의 기본 제공 함수들
+# tf.nn.static_rnn(): 시퀀스의 길이가 일정할 경우 사용 (미리 메모리 선점)
+# tf.nn.dynamic_rnn(): 시퀀스의 길이가 일정하지 않을 경우 사용 (동적 메모리 선점)
 rnn_cell = tf.contrib.rnn.BasicRNNCell(hidden_layer_size)
 outputs, _ = tf.nn.dynamic_rnn(cell=rnn_cell, inputs=_inputs, dtype=tf.float32)
 
-last_rnn_output = tf.squeeze(outputs[:, -1, :])
+last_rnn_output = outputs[:, -1, :]
 
 final_output = tf.layers.dense(inputs=last_rnn_output, units=10)
 
@@ -38,4 +40,7 @@ for i in range(3001):
     sess.run(train_step, feed_dict={_inputs: batch_x, y: batch_y})
 
     if i % 1000 == 0:
-        acc = sess.run(accuracy, feed_dict={_inputs: batch_x, y: batch_y})
+        loss, acc = sess.run([cross_entropy, accuracy], feed_dict={_inputs: batch_x, y: batch_y})
+        print('Iter ' + str(i) + ', Minibatch Loss= {:.6f}, Training Accuracy= {:.5f}'.format(loss, acc))
+
+print('Testing Accuracy:', sess.run(accuracy, feed_dict={_inputs: test_data, y: test_label}))
