@@ -13,10 +13,13 @@ class Layers:
         self.residual_block_cnt = 4
 
     def Batch_Norm(self, inputs, act=tf.nn.elu, reuse=False, name='batch_norm'):
-        return tf.contrib.layers.batch_norm(inputs=inputs, activation_fn=act, is_training=self.training, updates_collections=None, reuse=reuse, scope=name)
+        return tf.contrib.layers.batch_norm(inputs=inputs, activation_fn=act, is_training=self.training,
+                                            updates_collections=None, reuse=reuse, scope=name)
 
-    def Conv2D_Layer(self, inputs, filters, k_size=(3, 3), strides=(2, 2), padding='same', act=tf.nn.elu, reuse=False, name='conv2d'):
-        return tf.layers.conv2d(inputs=inputs, filters=filters, kernel_size=k_size, strides=strides, padding=padding, activation=act, reuse=reuse, name=name)
+    def Conv2D_Layer(self, inputs, filters, k_size=(3, 3), strides=(2, 2), padding='same', act=tf.nn.elu, reuse=False,
+                     name='conv2d'):
+        return tf.layers.conv2d(inputs=inputs, filters=filters, kernel_size=k_size, strides=strides, padding=padding,
+                                activation=act, reuse=reuse, name=name)
 
     def Dense_Layer(self, inputs, filters, act=tf.nn.elu, reuse=False, name='dense'):
         return tf.layers.dense(inputs=inputs, units=filters, activation=act, reuse=reuse, name=name)
@@ -25,11 +28,13 @@ class Layers:
         with tf.variable_scope(name):
             '''bottleneck layer (DenseNet-B)'''
             layer = self.Batch_Norm(inputs=inputs, name='bottleneck_batch_norm')
-            layer = self.Conv2D_Layer(inputs=layer, filters=4 * self.growth_rate, k_size=(1, 1), strides=(1, 1), act=tf.identity, name='bottleneck_conv')
+            layer = self.Conv2D_Layer(inputs=layer, filters=4 * self.growth_rate, k_size=(1, 1), strides=(1, 1),
+                                      act=tf.identity, name='bottleneck_conv')
 
             '''basic dense layer'''
             layer = self.Batch_Norm(inputs=layer, name='basic_batch_norm')
-            layer = self.Conv2D_Layer(inputs=layer, filters=self.growth_rate, k_size=(3, 3), strides=(1, 1), act=tf.identity, name='basic_conv')
+            layer = self.Conv2D_Layer(inputs=layer, filters=self.growth_rate, k_size=(3, 3), strides=(1, 1),
+                                      act=tf.identity, name='basic_conv')
 
             layer = tf.concat([inputs, layer], axis=-1, name='concat')
         return layer
@@ -43,18 +48,20 @@ class Layers:
         '''
         with tf.variable_scope(name):
             layer = self.Batch_Norm(inputs=inputs, name='batch_norm_1')
-            layer = self.Conv2D_Layer(inputs=layer, filters=n_filter, k_size=(3, 3), strides=(1, 1), act=tf.identity, name='residual_1')
+            layer = self.Conv2D_Layer(inputs=layer, filters=n_filter, k_size=(3, 3), strides=(1, 1), act=tf.identity,
+                                      name='residual_1')
             layer = self.Batch_Norm(inputs=layer, name='batch_norm_2')
-            layer = self.Conv2D_Layer(inputs=layer, filters=n_filter, k_size=(3, 3), strides=(1, 1), act=tf.identity, name='residual_2')
-            layer = tf.add(input, layer)
+            layer = self.Conv2D_Layer(inputs=layer, filters=n_filter, k_size=(3, 3), strides=(1, 1), act=tf.identity,
+                                      name='residual_2')
+            layer = tf.add(inputs, layer)
         return layer
 
     def Deconv_Layer(self, layer, idx, name='deconv'):
         with tf.variable_scope(name_or_scope=name):
-            # for i in range(self.dense_block_cnt):
-            #     layer = self.Dense_Block(inputs=layer, name='dense_block_{}'.format(i))
-            for i in range(self.residual_block_cnt):
-                layer = self.Residual_Block(inputs=layer, n_filter=self.default_filter + (idx * 10), name='residual_block_{}'.format(i))
+            for i in range(self.dense_block_cnt):
+                layer = self.Dense_Block(inputs=layer, name='dense_block_{}'.format(i))
+            # for i in range(self.residual_block_cnt):
+            #     layer = self.Residual_Block(inputs=layer, n_filter=self.default_filter + (idx * 10), name='residual_block_{}'.format(i))
 
             if idx == (self.layer_num - 1):
                 return layer
@@ -74,16 +81,20 @@ class Generator(Layers):
 
         with tf.variable_scope(name_or_scope=name, reuse=self.reuse):
             with tf.variable_scope(name_or_scope='input'):
-                layer = self.Dense_Layer(inputs=inputs, filters=self.hidden_num * self.s_size[0] * self.s_size[1], act=tf.identity, name='dense')
-                h0_layer = tf.reshape(layer, shape=(-1, self.s_size[0], self.s_size[1], self.hidden_num), name='reshape')
+                layer = self.Dense_Layer(inputs=inputs, filters=self.hidden_num * self.s_size[0] * self.s_size[1],
+                                         act=tf.identity, name='dense')
+                h0_layer = tf.reshape(layer, shape=(-1, self.s_size[0], self.s_size[1], self.hidden_num),
+                                      name='reshape')
 
             with tf.variable_scope(name_or_scope='deconv'):
                 for idx in range(self.layer_num):
-                    layer = self.Deconv_Layer(layer=h0_layer if idx == 0 else layer, idx=idx, name='deconv_'+str(idx))
-                layer = tf.concat([tf.image.resize_nearest_neighbor(h0_layer, self.output_size[-1], name='h0_resize'), layer], -1)
+                    layer = self.Deconv_Layer(layer=h0_layer if idx == 0 else layer, idx=idx, name='deconv_' + str(idx))
+                layer = tf.concat(
+                    [tf.image.resize_nearest_neighbor(h0_layer, self.output_size[-1], name='h0_resize'), layer], -1)
 
             with tf.variable_scope('output'):
-                layer = self.Conv2D_Layer(inputs=layer, filters=self.channel, k_size=(3, 3), strides=(1, 1), act=tf.nn.elu, name='g_logit')
+                layer = self.Conv2D_Layer(inputs=layer, filters=self.channel, k_size=(3, 3), strides=(1, 1),
+                                          act=tf.nn.elu, name='g_logit')
 
         self.variables = [var for var in tf.trainable_variables() if name in var.name]
 
@@ -105,29 +116,40 @@ class Discriminator(Layers):
             with tf.variable_scope(name_or_scope='encoder'):
                 for idx in range(self.layer_num):
                     with tf.variable_scope(name_or_scope='conv2d_' + str(idx)):
-                        layer = self.Conv2D_Layer(inputs=inputs if idx == 0 else layer, filters=self.hidden_num * (idx + 1), k_size=(3, 3), strides=(1, 1), name='conv2d_a')
-                        layer = self.Conv2D_Layer(inputs=layer, filters=self.hidden_num * (idx + 1), k_size=(3, 3), strides=(1, 1), name='conv2d_b')
+                        layer = self.Conv2D_Layer(inputs=inputs if idx == 0 else layer,
+                                                  filters=self.hidden_num * (idx + 1), k_size=(3, 3), strides=(1, 1),
+                                                  name='conv2d_a')
+                        layer = self.Conv2D_Layer(inputs=layer, filters=self.hidden_num * (idx + 1), k_size=(3, 3),
+                                                  strides=(1, 1), name='conv2d_b')
 
                         if idx < (self.layer_num - 1):
-                            layer = self.Conv2D_Layer(inputs=layer, filters=self.hidden_num * (idx + 2), k_size=(3, 3), strides=(2, 2), name='conv2d_c')
+                            layer = self.Conv2D_Layer(inputs=layer, filters=self.hidden_num * (idx + 2), k_size=(3, 3),
+                                                      strides=(2, 2), name='conv2d_c')
 
-                layer = tf.reshape(layer, shape=(-1, self.s_size[0] * self.s_size[1] * self.hidden_num * self.layer_num), name='e_reshape')
+                layer = tf.reshape(layer,
+                                   shape=(-1, self.s_size[0] * self.s_size[1] * self.hidden_num * self.layer_num),
+                                   name='e_reshape')
 
                 z = self.Dense_Layer(inputs=layer, filters=self.z_dim, act=tf.identity, name='z_dense')
                 z = tf.nn.tanh(z, name='z_logit')
 
             ## Decoder
             with tf.variable_scope(name_or_scope='decoder'):
-                layer = self.Dense_Layer(inputs=layer, filters=self.s_size[0] * self.s_size[1] * self.hidden_num, name='d_input')
-                h0_layer = tf.reshape(layer, shape=(-1, self.s_size[0], self.s_size[1], self.hidden_num), name='d_reshape')
+                layer = self.Dense_Layer(inputs=layer, filters=self.s_size[0] * self.s_size[1] * self.hidden_num,
+                                         name='d_input')
+                h0_layer = tf.reshape(layer, shape=(-1, self.s_size[0], self.s_size[1], self.hidden_num),
+                                      name='d_reshape')
 
                 with tf.variable_scope(name_or_scope='deconv'):
                     for idx in range(self.layer_num):
-                        layer = self.Deconv_Layer(layer=h0_layer if idx == 0 else layer, idx=idx, name='deconv_'+str(idx))
-                    layer = tf.concat([tf.image.resize_nearest_neighbor(h0_layer, self.output_size[-1], name='h0_resize'), layer], -1)
+                        layer = self.Deconv_Layer(layer=h0_layer if idx == 0 else layer, idx=idx,
+                                                  name='deconv_' + str(idx))
+                    layer = tf.concat(
+                        [tf.image.resize_nearest_neighbor(h0_layer, self.output_size[-1], name='h0_resize'), layer], -1)
 
             with tf.variable_scope('output'):
-                layer = self.Conv2D_Layer(inputs=layer, filters=self.channel, k_size=(3, 3), strides=(1, 1), act=tf.nn.elu, name='d_logit')
+                layer = self.Conv2D_Layer(inputs=layer, filters=self.channel, k_size=(3, 3), strides=(1, 1),
+                                          act=tf.nn.elu, name='d_logit')
 
         self.variables = [var for var in tf.trainable_variables() if name in var.name]
 
@@ -135,7 +157,7 @@ class Discriminator(Layers):
 
 class BEGAN:
     def __init__(self, sess, batch_size=16, z_dim=64, img_size=(128, 128), learning_rate=0.0001, channel=3, layer_num=5,
-                 hidden_num=30):
+                 hidden_num=50):
         self.sess = sess
         self.batch_size = batch_size
         self.z_dim = z_dim
@@ -153,7 +175,9 @@ class BEGAN:
     def _network(self):
         with tf.variable_scope('input_data'):
             self.z = tf.placeholder(dtype=tf.float32, shape=(self.batch_size, self.z_dim), name='z_data')
-            self.x = tf.placeholder(dtype=tf.float32, shape=(self.batch_size, self.img_size[0], self.img_size[1], self.channel), name='x_data')
+            self.x = tf.placeholder(dtype=tf.float32,
+                                    shape=(self.batch_size, self.img_size[0], self.img_size[1], self.channel),
+                                    name='x_data')
             self.k_t = tf.Variable(0., trainable=False, dtype=tf.float32, name='k_t')
 
         with tf.variable_scope('network'):
@@ -191,7 +215,8 @@ class BEGAN:
 
     def train(self, z, x):
         Layers.training = True
-        return self.sess.run([self.d_loss, self.g_loss, self.k_t, self.measure, self.k_update], feed_dict={self.z: z, self.x: x})
+        return self.sess.run([self.d_loss, self.g_loss, self.k_t, self.measure, self.k_update],
+                             feed_dict={self.z: z, self.x: x})
 
     def generate(self, z):
         Layers.training = False

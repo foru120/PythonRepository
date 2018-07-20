@@ -4,9 +4,9 @@ import numpy as np
 import tensorflow as tf
 import os
 
-from DeepLearningTechniques.GAN.BEGAN.model_v2 import BEGAN
-from DeepLearningTechniques.GAN.BEGAN.database import Database
-from DeepLearningTechniques.GAN.BEGAN.dataloader import DataLoader
+from DeepLearningTechniques.GAN.BEGAN.tensor_layer.model import BEGAN
+from DeepLearningTechniques.GAN.BEGAN.native.database import Database
+from DeepLearningTechniques.GAN.BEGAN.native.dataloader import DataLoader
 
 class Neuralnet:
     '''하이퍼파라미터 관련 변수'''
@@ -22,7 +22,7 @@ class Neuralnet:
         self._flag_setting()  # flag setting
 
         if (is_train == True) and (save_type == 'db'):  # data loading
-            self.db = Database(FLAGS=self._FLAGS, train_log=18)
+            self.db = Database(FLAGS=self._FLAGS, train_log=9)
             self.db.init_database()
             self.loader = DataLoader(batch_size=self._FLAGS.batch_size, train_data_path=self._FLAGS.train_data_path)
 
@@ -38,20 +38,20 @@ class Neuralnet:
         flags.DEFINE_integer('batch_size', 16, '훈련시 배치 크기')
         flags.DEFINE_integer('max_checks_without_progress', 20, '특정 횟수 만큼 조건이 만족하지 않은 경우 (Early Stop Condition)')
         flags.DEFINE_string('trained_param_path',
-                            'D:/Source/PythonRepository/DeepLearningTechniques/GAN/BEGAN/train_log/18th_test',
+                            'D:/Source/PythonRepository/DeepLearningTechniques/GAN/BEGAN/train_log/9th_test',
                             '훈련된 파라미터 값 저장 경로')
         self.config = tf.ConfigProto(
             gpu_options=tf.GPUOptions(allow_growth=True, per_process_gpu_memory_fraction=1)
         )
 
-    def create_image(self, images, epoch, step, start_idx, sess):
-        images = tf.transpose(images, perm=[0, 2, 1, 3])
+    def create_image(self, images, epoch, step, sess):
+        images = images[np.random.permutation(self._FLAGS.batch_size)[:10]]
         images = tf.image.convert_image_dtype(images / 255., tf.uint8)
-        images = [image for image in tf.split(images, self._FLAGS.batch_size, axis=0)]
+        images = [image for image in tf.split(images, 10, axis=0)]
 
         for idx in range(0, len(images)):
-            os.makedirs(os.path.join('gen_image', '18th_test', str(epoch).zfill(6) + '_' + str(step).zfill(6)), exist_ok=True)
-            with open(os.path.join('gen_image', '18th_test', str(epoch).zfill(6) + '_' + str(step).zfill(6), str(idx + start_idx) + '.jpeg'), mode='wb') as f:
+            os.makedirs(os.path.join('gen_image', '9th_test', str(epoch).zfill(6) + '_' + str(step).zfill(6)), exist_ok=True)
+            with open(os.path.join('gen_image', '9th_test', str(epoch).zfill(6) + '_' + str(step).zfill(6), str(idx) + '.jpeg'), mode='wb') as f:
                 f.write(sess.run(tf.image.encode_jpeg(tf.squeeze(images[idx], [0]))))
 
     def train(self):
@@ -66,7 +66,7 @@ class Neuralnet:
             print('>> Tensorflow session built. Variables initialized.')
             sess.run(tf.global_variables_initializer())
 
-            self._saver = tf.train.Saver(max_to_keep=20)
+            self._saver = tf.train.Saver(max_to_keep=10)
 
             # ckpt_st = tf.train.get_checkpoint_state(os.path.join(self._FLAGS.trained_param_path, '000001'))
 
@@ -79,6 +79,7 @@ class Neuralnet:
             print('>> Running started.')
 
             while True:
+                carry = 1.
                 for step in range(1, num_train+1):
                     st = time.time()
                     z = np.random.uniform(-1, 1, size=(self._FLAGS.batch_size, 64))
@@ -87,12 +88,12 @@ class Neuralnet:
                     if global_step % 10000 == 0:
                         began.learning_rate = max(0.00002, began.learning_rate/2)
 
-                    d_loss, g_loss, k_t, measure, _ = began.train(z=z, x=x)
+                    d_loss, g_loss, k_t, measure, _ = began.train(z=z, x=x, carry=carry)
 
                     et = time.time()
 
-                    print(">> [Training] epoch/step/global_step: [%d/%d/%d], g_loss: %.6f, d_loss: %.6f, k_t: %.4f, measure: %.4f, step_time: %.2f" % (
-                        epoch, step, global_step, g_loss, d_loss, k_t, measure, et-st))
+                    print(">> [Training] epoch/step/global_step: [%d/%d/%d], g_loss: %.6f, d_loss: %.6f, k_t: %.4f, measure: %.4f, carry: %.6f, step_time: %.2f" % (
+                        epoch, step, global_step, g_loss, d_loss, k_t, measure, carry, et-st))
 
                     self.db.mon_data_to_db(epoch, step, float(g_loss), float(d_loss), float(k_t), float(measure), et-st)
 
@@ -100,11 +101,11 @@ class Neuralnet:
                         ## Save Model & image
                         os.makedirs(os.path.join(self._FLAGS.trained_param_path), exist_ok=True)
                         self._saver.save(sess, os.path.join(self._FLAGS.trained_param_path, 'began_param'), global_step=global_step)
-                        for idx in range(5):
-                            g_img = began.generate(z=np.random.uniform(-1, 1, size=(self._FLAGS.batch_size, 64)))
-                            self.create_image(g_img, epoch, step, idx * self._FLAGS.batch_size, sess)
+                        g_img = began.generate(z=z)
+                        self.create_image(g_img, epoch, step, sess)
                         print('>> [Model & Image Saved] epoch: %d, step: %d' % (epoch, step))
                     global_step += 1
+                    carry = carry - (1 / num_train)
 
                 epoch += 1
 

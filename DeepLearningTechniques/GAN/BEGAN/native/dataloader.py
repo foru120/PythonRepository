@@ -12,7 +12,7 @@ class DataLoader:
             filenames.append(os.path.join(train_data_path, filename))
 
         self.train_x_len = len(filenames)
-        filenames = np.array(filenames)[np.random.permutation(self.train_x_len)]
+        filenames = np.asarray(filenames)[np.random.permutation(self.train_x_len)]
 
         with tf.variable_scope('dataloader'):
             self.train_x = tf.convert_to_tensor(filenames, dtype=tf.string, name='train_x')
