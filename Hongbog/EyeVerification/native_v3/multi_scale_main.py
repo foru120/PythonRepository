@@ -2,32 +2,31 @@ import time
 from collections import Counter
 import numpy as np
 import os
-from PIL import Image
-import cv2
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from Hongbog.EyeVerification.native.constants import *
-from Hongbog.EyeVerification.native.multi_scale_model import Model
-from Hongbog.EyeVerification.common.multi_scale_dataloader import DataLoader
+from Hongbog.EyeVerification.native_v3.constants import *
+from Hongbog.EyeVerification.native_v3.multi_scale_mobilenet_v2_model import Model
+from Hongbog.EyeVerification.native_v3.multi_scale_dataloader import DataLoader
+from Hongbog.EyeVerification.native_v3.cam import GradCAM
 
 class Neuralnet:
 
-    def __init__(self, is_training, is_logging, save_type=None):
-        self.is_training = is_training
+    def __init__(self, is_logging, save_type=None):
         self.is_logging = is_logging
         self.save_type = save_type
 
-    def train(self):
         self.loader = DataLoader(batch_size=flags.FLAGS.batch_size,
                                  train_right_root_path=flags.FLAGS.right_train_data_path,
                                  test_right_root_path=flags.FLAGS.right_test_data_path,
                                  train_left_root_path=flags.FLAGS.left_train_data_path,
                                  test_left_root_path=flags.FLAGS.left_test_data_path)
-        print('>> DataLoader created')
+
+    def train(self):
+        self.loader.train_init()
+        print('>> Train DataLoader created')
 
         train_num = self.loader.train_right_x_len // flags.FLAGS.batch_size
-        # test_num = self.loader.test_right_x_len // flags.FLAGS.batch_size
 
         train_right_low1, train_right_low2, train_right_low3, train_right_low4, train_right_low5, train_right_low6,\
         train_left_low1, train_left_low2, train_left_low3, train_left_low4, train_left_low5, train_left_low6 = self.loader.train_low_loader()
@@ -36,19 +35,13 @@ class Neuralnet:
         train_right_high1, train_right_high2, train_right_high3, train_right_high4, train_right_high5, train_right_high6, \
         train_left_high1, train_left_high2, train_left_high3, train_left_high4, train_left_high5, train_left_high6 = self.loader.train_high_loader()
 
-        # test_right_low, test_left_low = self.loader.test_low_loader()
-        # test_right_mid, test_left_mid = self.loader.test_mid_loader()
-        # test_right_high, test_left_high = self.loader.test_high_loader()
-
         config = tf.ConfigProto(
             gpu_options=tf.GPUOptions(allow_growth=True, per_process_gpu_memory_fraction=0.7)
         )
 
         with tf.Session(config=config) as sess:
-            right_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=self.is_training,
-                                is_logging=self.is_logging, name='right')
-            left_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=self.is_training,
-                               is_logging=self.is_logging, name='left')
+            right_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=True, is_logging=self.is_logging, name='right')
+            left_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=True, is_logging=self.is_logging, name='left')
 
             print('>> Tensorflow session built. Variables initialized')
             sess.run(tf.global_variables_initializer())
@@ -78,8 +71,6 @@ class Neuralnet:
             if self.is_logging:
                 train_right_writer = tf.summary.FileWriter(flags.FLAGS.tensorboard_log_dir + '\\train\\right', graph=tf.get_default_graph())
                 train_left_writer = tf.summary.FileWriter(flags.FLAGS.tensorboard_log_dir + '\\train\\left', graph=tf.get_default_graph())
-                # test_right_writer = tf.summary.FileWriter(flags.FLAGS.tensorboard_log_dir + '\\test\\right', graph=tf.get_default_graph())
-                # test_left_writer = tf.summary.FileWriter(flags.FLAGS.tensorboard_log_dir + '\\test\\left', graph=tf.get_default_graph())
 
             coord = tf.train.Coordinator()
             threads = tf.train.start_queue_runners(sess=sess, coord=coord)
@@ -88,8 +79,6 @@ class Neuralnet:
             for epoch in range(1, flags.FLAGS.epochs+1):
                 tot_train_right_acc, tot_train_right_loss = [], []
                 tot_train_left_acc, tot_train_left_loss = [], []
-                # tot_test_right_acc, tot_test_right_loss = [], []
-                # tot_test_left_acc, tot_test_left_loss = [], []
 
                 if epoch % 5 == 0:
                     right_model.lr = max(right_model.lr / 2, 0.0001)
@@ -101,6 +90,7 @@ class Neuralnet:
                     '''Data Loading - low, middle, high 당 (right, left 300 개씩)'''
                     train_low_data = sess.run([train_right_low1, train_right_low2, train_right_low3, train_right_low4, train_right_low5, train_right_low6,
                                                train_left_low1, train_left_low2, train_left_low3, train_left_low4, train_left_low5, train_left_low6])
+
                     train_low_right_batch_x, train_low_right_batch_y = np.concatenate([right_data[0] for right_data in train_low_data[:6]]), np.concatenate([right_data[1] for right_data in train_low_data[:6]])
                     train_low_left_batch_x, train_low_left_batch_y = np.concatenate([left_data[0] for left_data in train_low_data[6:]]), np.concatenate([left_data[1] for left_data in train_low_data[6:]])
 
@@ -164,99 +154,20 @@ class Neuralnet:
                 train_et = time.time()
                 tot_train_time = train_et - train_st
 
-                # '''Model Test'''
-                # right_prob, right_label = [], []
-                # left_prob, left_label = [], []
-                # ensemble_prob, ensemble_label = [], []
-                # tot_ensemble_acc = []
-                #
-                # for step in range(1, test_num + 1):
-                #     test_low_data = sess.run([test_right_low, test_left_low])
-                #     test_low_right_batch_x, test_low_right_batch_y, test_low_left_batch_x, test_low_left_batch_y = test_low_data[0][0], test_low_data[0][1],\
-                #                                                                                                    test_low_data[1][0], test_low_data[1][1]
-                #
-                #     test_mid_data = sess.run([test_right_mid, test_left_mid])
-                #     test_mid_right_batch_x, test_mid_right_batch_y, test_mid_left_batch_x, test_mid_left_batch_y = test_mid_data[0][0], test_mid_data[0][1], \
-                #                                                                                                    test_mid_data[1][0], test_mid_data[1][1]
-                #
-                #     test_high_data = sess.run([test_right_high, test_left_high])
-                #     test_high_right_batch_x, test_high_right_batch_y, test_high_left_batch_x, test_high_left_batch_y = test_high_data[0][0], test_high_data[0][1], \
-                #                                                                                                        test_high_data[1][0], test_high_data[1][1]
-                #
-                #     if self.is_logging:
-                #         test_right_acc, test_right_loss, \
-                #         test_right_prob, test_right_summary = right_model.validation(low_res_X=test_low_right_batch_x,
-                #                                                                      mid_res_X=test_mid_right_batch_x,
-                #                                                                      high_res_X=test_high_right_batch_x,
-                #                                                                      y=test_low_right_batch_y,
-                #                                                                      is_training=False)
-                #     else:
-                #         test_right_acc, test_right_loss, test_right_prob = right_model.validation(low_res_X=test_low_right_batch_x,
-                #                                                                                   mid_res_X=test_mid_right_batch_x,
-                #                                                                                   high_res_X=test_high_right_batch_x,
-                #                                                                                   y=test_low_right_batch_y,
-                #                                                                                   is_training=False)
-                #
-                #     if self.is_logging:
-                #         test_left_acc, test_left_loss, \
-                #         test_left_prob, test_left_summary = left_model.validation(low_res_X=test_low_left_batch_x,
-                #                                                                   mid_res_X=test_mid_left_batch_x,
-                #                                                                   high_res_X=test_high_left_batch_x,
-                #                                                                   y=test_low_left_batch_y,
-                #                                                                   is_training=False)
-                #     else:
-                #         test_left_acc, test_left_loss, test_left_prob = left_model.validation(low_res_X=test_low_left_batch_x,
-                #                                                                               mid_res_X=test_mid_left_batch_x,
-                #                                                                               high_res_X=test_high_left_batch_x,
-                #                                                                               y=test_low_left_batch_y,
-                #                                                                               is_training=False)
-                #
-                #     '''Ensemble Prediction'''
-                #     tot_ensemble_acc.append(np.sum(np.argmax(test_right_prob + test_left_prob, axis=1) == np.array(test_low_right_batch_y)) / flags.FLAGS.batch_size)
-                #
-                #     '''Monitoring'''
-                #     tot_test_right_acc.append(test_right_acc)
-                #     tot_test_right_loss.append(test_right_loss)
-                #     tot_test_left_acc.append(test_left_acc)
-                #     tot_test_left_loss.append(test_left_loss)
-                #
-                #     '''Confusion Matrix'''
-                #     right_prob.append(np.argmax(test_right_prob, axis=1).flatten().tolist())
-                #     right_label.append(test_low_right_batch_y.flatten().tolist())
-                #     left_prob.append(np.argmax(test_left_prob, axis=1).flatten().tolist())
-                #     left_label.append(test_low_left_batch_y.flatten().tolist())
-                #     ensemble_prob.append(np.argmax(test_right_prob + test_left_prob, axis=1).flatten().tolist())
-                #     ensemble_label.append(test_low_right_batch_y.flatten().tolist())
-
                 '''Tensorboard Logging'''
                 if self.is_logging:
                     train_right_writer.add_summary(summary=train_right_summary, global_step=epoch)
                     train_left_writer.add_summary(summary=train_left_summary, global_step=epoch)
-                    # test_right_writer.add_summary(summary=test_right_summary, global_step=epoch)
-                    # test_left_writer.add_summary(summary=test_left_summary, global_step=epoch)
 
                 tot_train_right_acc = float(np.mean(np.array(tot_train_right_acc)))
                 tot_train_right_loss = float(np.mean(np.array(tot_train_right_loss)))
                 tot_train_left_acc = float(np.mean(np.array(tot_train_left_acc)))
                 tot_train_left_loss = float(np.mean(np.array(tot_train_left_loss)))
 
-                # tot_test_right_acc = float(np.mean(np.array(tot_test_right_acc)))
-                # tot_test_right_loss = float(np.mean(np.array(tot_test_right_loss)))
-                # tot_test_left_acc = float(np.mean(np.array(tot_test_left_acc)))
-                # tot_test_left_loss = float(np.mean(np.array(tot_test_left_loss)))
-                # tot_ensemble_acc = float(np.mean(np.array(tot_ensemble_acc)))
-
                 print('>> [Total-Train] epoch: [%d], [Right]Accuracy: %.6f, [Left]Accuracy: %.6f, [Right]Loss: %.6f, [Left]Loss: %.6f, time: %.2f'
                       % (epoch, tot_train_right_acc, tot_train_left_acc, tot_train_right_loss, tot_train_left_loss, tot_train_time))
-                # print('>> [Total-Test] epoch: [%d], [Right]Accuracy: %.6f, [Left]Accuracy: %.6f, [Ensemble]Accuracy: %.6f, [Right]Loss: %.6f, [Left]Loss: %.6f'
-                #     % (epoch, tot_test_right_acc, tot_test_left_acc, tot_ensemble_acc, tot_test_right_loss, tot_test_left_loss))
-                # print('>> [Right-Confusion-Matrix]')
-                # print(sess.run(tf.confusion_matrix(labels=np.array(right_label).flatten(), predictions=np.array(right_prob).flatten(), num_classes=7)))
-                # print('>> [Left-Confusion-Matrix]')
-                # print(sess.run(tf.confusion_matrix(labels=np.array(left_label).flatten(), predictions=np.array(left_prob).flatten(), num_classes=7)))
-                # print('>> [Ensemble-Confusion-Matrix]')
-                # print(sess.run(tf.confusion_matrix(labels=np.array(ensemble_label).flatten(), predictions=np.array(ensemble_prob).flatten(), num_classes=7)))
 
+                '''Database 에 로그 저장'''
                 # self.db.mon_data_to_db(epoch, tot_train_acc, tot_test_acc, tot_train_loss, tot_test_loss, tot_train_time, tot_test_time)
 
                 '''특정 레이어의 변수 값 출력'''
@@ -277,21 +188,140 @@ class Neuralnet:
 
             # self.db.close_conn()
 
+    def integration_test(self):
+        tf.reset_default_graph()
+
+        self.loader.test_init()
+        print('>> Test DataLoader created')
+
+        test_num = self.loader.test_right_x_len // flags.FLAGS.batch_size
+
+        test_right_low, test_left_low = self.loader.test_low_loader()
+        test_right_mid, test_left_mid = self.loader.test_mid_loader()
+        test_right_high, test_left_high = self.loader.test_high_loader()
+
+        config = tf.ConfigProto(
+            gpu_options=tf.GPUOptions(allow_growth=True, per_process_gpu_memory_fraction=0.7)
+        )
+
+        with tf.Session(config=config) as sess:
+            right_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='right')
+            left_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='left')
+
+            print('>> Tensorflow session built. Variables initialized')
+            sess.run(tf.global_variables_initializer())
+
+            self._saver = tf.train.Saver(var_list=tf.global_variables())
+            ckpt_st = tf.train.get_checkpoint_state(os.path.join(flags.FLAGS.trained_weight_dir))
+
+            if ckpt_st is not None:
+                '''restore 시에는 tf.global_variables_initializer() 가 필요 없다.'''
+                self._saver.restore(sess, ckpt_st.model_checkpoint_path)
+                print('>> Model Restored')
+
+            coord = tf.train.Coordinator()
+            threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+            print('>> Running started')
+
+            '''Model Test'''
+            tot_test_right_acc, tot_test_right_loss = [], []
+            tot_test_left_acc, tot_test_left_loss = [], []
+
+            right_prob, right_label = [], []
+            left_prob, left_label = [], []
+            ensemble_prob, ensemble_label = [], []
+            tot_ensemble_acc = []
+
+            for step in range(1, test_num + 1):
+                test_low_data = sess.run([test_right_low, test_left_low])
+                test_low_right_batch_x, test_low_right_batch_y, test_low_left_batch_x, test_low_left_batch_y = \
+                    test_low_data[0][0], test_low_data[0][1], test_low_data[1][0], test_low_data[1][1]
+
+                test_mid_data = sess.run([test_right_mid, test_left_mid])
+                test_mid_right_batch_x, test_mid_right_batch_y, test_mid_left_batch_x, test_mid_left_batch_y = \
+                    test_mid_data[0][0], test_mid_data[0][1], test_mid_data[1][0], test_mid_data[1][1]
+
+                test_high_data = sess.run([test_right_high, test_left_high])
+                test_high_right_batch_x, test_high_right_batch_y, test_high_left_batch_x, test_high_left_batch_y = \
+                    test_high_data[0][0], test_high_data[0][1], test_high_data[1][0], test_high_data[1][1]
+
+                if self.is_logging:
+                    test_right_acc, test_right_loss, \
+                    test_right_prob, test_right_summary = right_model.validation(low_res_X=test_low_right_batch_x,
+                                                                                 mid_res_X=test_mid_right_batch_x,
+                                                                                 high_res_X=test_high_right_batch_x,
+                                                                                 y=test_low_right_batch_y)
+                else:
+                    test_right_acc, test_right_loss, test_right_prob = right_model.validation(
+                        low_res_X=test_low_right_batch_x,
+                        mid_res_X=test_mid_right_batch_x,
+                        high_res_X=test_high_right_batch_x,
+                        y=test_low_right_batch_y)
+
+                if self.is_logging:
+                    test_left_acc, test_left_loss, \
+                    test_left_prob, test_left_summary = left_model.validation(low_res_X=test_low_left_batch_x,
+                                                                              mid_res_X=test_mid_left_batch_x,
+                                                                              high_res_X=test_high_left_batch_x,
+                                                                              y=test_low_left_batch_y)
+                else:
+                    test_left_acc, test_left_loss, test_left_prob = left_model.validation(
+                        low_res_X=test_low_left_batch_x,
+                        mid_res_X=test_mid_left_batch_x,
+                        high_res_X=test_high_left_batch_x,
+                        y=test_low_left_batch_y)
+
+                '''Ensemble Prediction'''
+                tot_ensemble_acc.append(np.sum(np.argmax(test_right_prob + test_left_prob, axis=1) == np.array(
+                    test_low_right_batch_y)) / flags.FLAGS.batch_size)
+
+                '''Monitoring'''
+                tot_test_right_acc.append(test_right_acc)
+                tot_test_right_loss.append(test_right_loss)
+                tot_test_left_acc.append(test_left_acc)
+                tot_test_left_loss.append(test_left_loss)
+
+                '''Confusion Matrix'''
+                right_prob.append(np.argmax(test_right_prob, axis=1).flatten().tolist())
+                right_label.append(test_low_right_batch_y.flatten().tolist())
+                left_prob.append(np.argmax(test_left_prob, axis=1).flatten().tolist())
+                left_label.append(test_low_left_batch_y.flatten().tolist())
+                ensemble_prob.append(np.argmax(test_right_prob + test_left_prob, axis=1).flatten().tolist())
+                ensemble_label.append(test_low_right_batch_y.flatten().tolist())
+
+            tot_test_right_acc = float(np.mean(np.array(tot_test_right_acc)))
+            tot_test_right_loss = float(np.mean(np.array(tot_test_right_loss)))
+            tot_test_left_acc = float(np.mean(np.array(tot_test_left_acc)))
+            tot_test_left_loss = float(np.mean(np.array(tot_test_left_loss)))
+            tot_ensemble_acc = float(np.mean(np.array(tot_ensemble_acc)))
+
+            print('>> [Total-Test] [Right]Accuracy: %.6f, [Left]Accuracy: %.6f, [Ensemble]Accuracy: %.6f, [Right]Loss: %.6f, [Left]Loss: %.6f'
+                % (tot_test_right_acc, tot_test_left_acc, tot_ensemble_acc, tot_test_right_loss, tot_test_left_loss))
+            print('>> [Right-Confusion-Matrix]')
+            print(sess.run(tf.confusion_matrix(labels=np.array(right_label).flatten(), predictions=np.array(right_prob).flatten(), num_classes=7)))
+            print('>> [Left-Confusion-Matrix]')
+            print(sess.run(tf.confusion_matrix(labels=np.array(left_label).flatten(), predictions=np.array(left_prob).flatten(), num_classes=7)))
+            print('>> [Ensemble-Confusion-Matrix]')
+            print(sess.run(tf.confusion_matrix(labels=np.array(ensemble_label).flatten(), predictions=np.array(ensemble_prob).flatten(), num_classes=7)))
+
+            coord.request_stop()
+            coord.join(threads)
+
     def cam_test(self):
         sample_num = 3  # 클래스 당 테스트 샘플 개수
         class_num = 7  # 전체 클래스 개수
         batch_size = sample_num * class_num
-        low_img_size, mid_img_size, high_img_size = (160, 60), (200, 80), (240, 100)
-        right_sample_path = 'D:\\100_dataset\\eye_verification\\eye_only_v3\\test\\right'
-        left_sample_path = 'D:\\100_dataset\\eye_verification\\eye_only_v3\\test\\left'
+        low_img_size, mid_img_size, high_img_size = (60, 160), (80, 200), (100, 240)
+        right_sample_path = 'G:/04_dataset/eye_verification/eye_only_v3/test/right'
+        left_sample_path = 'G:/04_dataset/eye_verification/eye_only_v3/test/left'
 
         def save_matplot_img(right_outputs, left_outputs, sample_num, class_num):
             f = plt.figure(figsize=(10, 8))
             plt.suptitle('Grad CAM (Gradient-weighted Class Activation Mapping)', fontsize=20)
             outer = gridspec.GridSpec(1, 2, wspace=0.2, hspace=0.2)
 
-            right_inner = gridspec.GridSpecFromSubplotSpec(7, 3, subplot_spec=outer[0], wspace=0.1, hspace=0.1)
-            left_inner = gridspec.GridSpecFromSubplotSpec(7, 3, subplot_spec=outer[1], wspace=0.1, hspace=0.1)
+            right_inner = gridspec.GridSpecFromSubplotSpec(class_num, sample_num, subplot_spec=outer[0], wspace=0.1, hspace=0.1)
+            left_inner = gridspec.GridSpecFromSubplotSpec(class_num, sample_num, subplot_spec=outer[1], wspace=0.1, hspace=0.1)
 
             for cls in range(class_num):
                 for sample in range(sample_num):
@@ -305,7 +335,7 @@ class Neuralnet:
                     subplot.imshow(left_outputs[sample + cls * sample_num])
                     f.add_subplot(subplot)
 
-            f.savefig('D:\\grad_cam\\cam_test.png')
+            f.savefig('D:/Source/PythonRepository/Hongbog/EyeVerification/native_v3/cam_log/cam_test.png')
             print('>> Grad CAM Complete')
 
         def get_file_names():
@@ -331,29 +361,26 @@ class Neuralnet:
 
             return right_file_names, left_file_names
 
-        def data_low_data(path):
-            with tf.variable_scope('data_low_data'):
+        def low_normal_data(path):
+            with tf.variable_scope('low_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
-                data = tf.transpose(data, perm=[1, 0, 2])
                 data = tf.image.resize_images(data, size=low_img_size)
                 data = tf.divide(data, 255.)
             return data
 
-        def data_mid_data(path):
-            with tf.variable_scope('data_mid_data'):
+        def mid_normal_data(path):
+            with tf.variable_scope('mid_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
-                data = tf.transpose(data, perm=[1, 0, 2])
                 data = tf.image.resize_images(data, size=mid_img_size)
                 data = tf.divide(data, 255.)
             return data
 
-        def data_high_data(path):
-            with tf.variable_scope('data_high_data'):
+        def high_normal_data(path):
+            with tf.variable_scope('high_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
-                data = tf.transpose(data, perm=[1, 0, 2])
                 data = tf.image.resize_images(data, size=high_img_size)
                 data = tf.divide(data, 255.)
             return data
@@ -364,27 +391,27 @@ class Neuralnet:
                 right_dataset = tf.contrib.data.Dataset.from_tensor_slices(right_file_names).repeat()
                 left_dataset = tf.contrib.data.Dataset.from_tensor_slices(left_file_names).repeat()
 
-                right_low_dataset_map = right_dataset.map(data_low_data).batch(batch_size)
+                right_low_dataset_map = right_dataset.map(low_normal_data).batch(batch_size)
                 right_low_iterator = right_low_dataset_map.make_one_shot_iterator()
                 right_low_batch_input = right_low_iterator.get_next()
 
-                left_low_dataset_map = left_dataset.map(data_low_data).batch(batch_size)
+                left_low_dataset_map = left_dataset.map(low_normal_data).batch(batch_size)
                 left_low_iterator = left_low_dataset_map.make_one_shot_iterator()
                 left_low_batch_input = left_low_iterator.get_next()
 
-                right_mid_dataset_map = right_dataset.map(data_mid_data).batch(batch_size)
+                right_mid_dataset_map = right_dataset.map(mid_normal_data).batch(batch_size)
                 right_mid_iterator = right_mid_dataset_map.make_one_shot_iterator()
                 right_mid_batch_input = right_mid_iterator.get_next()
 
-                left_mid_dataset_map = left_dataset.map(data_mid_data).batch(batch_size)
+                left_mid_dataset_map = left_dataset.map(mid_normal_data).batch(batch_size)
                 left_mid_iterator = left_mid_dataset_map.make_one_shot_iterator()
                 left_mid_batch_input = left_mid_iterator.get_next()
 
-                right_high_dataset_map = right_dataset.map(data_high_data).batch(batch_size)
+                right_high_dataset_map = right_dataset.map(high_normal_data).batch(batch_size)
                 right_high_iterator = right_high_dataset_map.make_one_shot_iterator()
                 right_high_batch_input = right_high_iterator.get_next()
 
-                left_high_dataset_map = left_dataset.map(data_high_data).batch(batch_size)
+                left_high_dataset_map = left_dataset.map(high_normal_data).batch(batch_size)
                 left_high_iterator = left_high_dataset_map.make_one_shot_iterator()
                 left_high_batch_input = left_high_iterator.get_next()
 
@@ -394,11 +421,16 @@ class Neuralnet:
         low_right_batch_img, low_left_batch_img, mid_right_batch_img, mid_left_batch_img, high_right_batch_img, high_left_batch_img = data_loader(right_file_names, left_file_names)
 
         with tf.Session() as sess:
-            right_model = Model(sess=sess, name='right')
-            left_model = Model(sess=sess, name='left')
+            right_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='right')
+            left_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='left')
+
+            right_cam = GradCAM(instance=right_model, sample_size=sample_num * class_num, name='right_grad_cam')
+            right_cam.build()
+            left_cam = GradCAM(instance=left_model, sample_size=sample_num * class_num, name='left_grad_cam')
+            left_cam.build()
 
             self._saver = tf.train.Saver()
-            ckpt_st = tf.train.get_checkpoint_state(os.path.join(flags.FLAGS.trained_param_path))
+            ckpt_st = tf.train.get_checkpoint_state(os.path.join(flags.FLAGS.trained_weight_dir))
 
             if ckpt_st is not None:
                 '''restore 시에는 tf.global_variables_initializer() 가 필요 없다.'''
@@ -409,57 +441,21 @@ class Neuralnet:
                 sess.run([low_right_batch_img, low_left_batch_img, mid_right_batch_img, mid_left_batch_img, high_right_batch_img, high_left_batch_img])
             right_file_names, left_file_names = sess.run([right_file_names, left_file_names])
 
-            right_grad_cam = right_model.grad_cam(low_res_X=low_right_batch_x,
-                                                  mid_res_X=mid_right_batch_x,
-                                                  high_res_X=high_right_batch_x,
-                                                  batch_size=sample_num * class_num)
-            left_grad_cam = left_model.grad_cam(low_res_X=low_left_batch_x,
-                                                mid_res_X=mid_left_batch_x,
-                                                high_res_X=high_left_batch_x,
-                                                batch_size=sample_num * class_num)
+            right_cam_outputs = right_cam.visualize(low_res_X=low_right_batch_x,
+                                                    mid_res_X=mid_right_batch_x,
+                                                    high_res_X=high_right_batch_x,
+                                                    file_names=right_file_names)
+            left_cam_outputs = left_cam.visualize(low_res_X=low_left_batch_x,
+                                                  mid_res_X=mid_left_batch_x,
+                                                  high_res_X=high_left_batch_x,
+                                                  file_names=left_file_names)
 
-            # 원본 영상과 Grad CAM 을 합친 결과
-            right_outputs = []
-            left_outputs = []
+            save_matplot_img(right_cam_outputs, left_cam_outputs, sample_num, class_num)
 
-            for idx in range(sample_num * class_num):
-                # 오른쪽 눈
-                right_img = Image.open(right_file_names[idx], mode='r').convert('RGB')
-                right_img = np.array(right_img.resize((200, 80)))
-                right_img = right_img.astype(float)
-                right_img /= 255.
-
-                right_cam = cv2.applyColorMap(np.uint8(255 * right_grad_cam[idx]), cv2.COLORMAP_JET)
-                right_cam = cv2.cvtColor(right_cam, cv2.COLOR_BGR2RGB)
-
-                # grad-cam과 원본 이미지 중첩.
-                alpha = 0.0025  # COLORMAP_JET 의 비율 값.
-                right_output = right_img + alpha * right_cam
-                right_output /= right_output.max()
-
-                # 왼쪽 눈
-                left_img = Image.open(left_file_names[idx], mode='r').convert('RGB')
-                left_img = np.array(left_img.resize((200, 80)))
-                left_img = left_img.astype(float)
-                left_img /= 255.
-
-                left_cam = cv2.applyColorMap(np.uint8(255 * left_grad_cam[idx]), cv2.COLORMAP_JET)
-                left_cam = cv2.cvtColor(left_cam, cv2.COLOR_BGR2RGB)
-
-                # grad-cam과 원본 이미지 중첩.
-                alpha = 0.0025  # COLORMAP_JET 의 비율 값.
-                left_output = left_img + alpha * left_cam
-                left_output /= left_output.max()
-
-                right_outputs.append(right_output)
-                left_outputs.append(left_output)
-
-            save_matplot_img(right_outputs, left_outputs, sample_num, class_num)
-
-    def test(self):
+    def unit_test(self):
         low_img_size, mid_img_size, high_img_size = (60, 160), (80, 200), (100, 240)
-        right_sample_path = 'G:\\04_dataset\\eye_verification\\eye_only_v3\\test\\right\\5'
-        left_sample_path = 'G:\\04_dataset\\eye_verification\\eye_only_v3\\test\\left\\5'
+        right_sample_path = 'G:\\04_dataset\\eye_verification\\eye_only_v3\\test\\right\\6'
+        left_sample_path = 'G:\\04_dataset\\eye_verification\\eye_only_v3\\test\\left\\6'
 
         def get_file_names():
             right_file_names, left_file_names = [], []
@@ -483,24 +479,24 @@ class Neuralnet:
 
             return right_file_names, left_file_names
 
-        def data_low_data(path):
-            with tf.variable_scope('data_low_data'):
+        def low_normal_data(path):
+            with tf.variable_scope('low_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=low_img_size)
                 data = tf.divide(data, 255.)
             return data
 
-        def data_mid_data(path):
-            with tf.variable_scope('data_mid_data'):
+        def mid_normal_data(path):
+            with tf.variable_scope('mid_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=mid_img_size)
                 data = tf.divide(data, 255.)
             return data
 
-        def data_high_data(path):
-            with tf.variable_scope('data_high_data'):
+        def high_normal_data(path):
+            with tf.variable_scope('high_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=high_img_size)
@@ -513,27 +509,27 @@ class Neuralnet:
                 right_dataset = tf.contrib.data.Dataset.from_tensor_slices(right_file_names).repeat()
                 left_dataset = tf.contrib.data.Dataset.from_tensor_slices(left_file_names).repeat()
 
-                right_low_dataset_map = right_dataset.map(data_low_data).batch(flags.FLAGS.batch_size)
+                right_low_dataset_map = right_dataset.map(low_normal_data).batch(flags.FLAGS.batch_size)
                 right_low_iterator = right_low_dataset_map.make_one_shot_iterator()
                 right_low_batch_input = right_low_iterator.get_next()
 
-                left_low_dataset_map = left_dataset.map(data_low_data).batch(flags.FLAGS.batch_size)
+                left_low_dataset_map = left_dataset.map(low_normal_data).batch(flags.FLAGS.batch_size)
                 left_low_iterator = left_low_dataset_map.make_one_shot_iterator()
                 left_low_batch_input = left_low_iterator.get_next()
 
-                right_mid_dataset_map = right_dataset.map(data_mid_data).batch(flags.FLAGS.batch_size)
+                right_mid_dataset_map = right_dataset.map(mid_normal_data).batch(flags.FLAGS.batch_size)
                 right_mid_iterator = right_mid_dataset_map.make_one_shot_iterator()
                 right_mid_batch_input = right_mid_iterator.get_next()
 
-                left_mid_dataset_map = left_dataset.map(data_mid_data).batch(flags.FLAGS.batch_size)
+                left_mid_dataset_map = left_dataset.map(mid_normal_data).batch(flags.FLAGS.batch_size)
                 left_mid_iterator = left_mid_dataset_map.make_one_shot_iterator()
                 left_mid_batch_input = left_mid_iterator.get_next()
 
-                right_high_dataset_map = right_dataset.map(data_high_data).batch(flags.FLAGS.batch_size)
+                right_high_dataset_map = right_dataset.map(high_normal_data).batch(flags.FLAGS.batch_size)
                 right_high_iterator = right_high_dataset_map.make_one_shot_iterator()
                 right_high_batch_input = right_high_iterator.get_next()
 
-                left_high_dataset_map = left_dataset.map(data_high_data).batch(flags.FLAGS.batch_size)
+                left_high_dataset_map = left_dataset.map(high_normal_data).batch(flags.FLAGS.batch_size)
                 left_high_iterator = left_high_dataset_map.make_one_shot_iterator()
                 left_high_batch_input = left_high_iterator.get_next()
 
@@ -543,8 +539,8 @@ class Neuralnet:
         low_right_batch_img, low_left_batch_img, mid_right_batch_img, mid_left_batch_img, high_right_batch_img, high_left_batch_img = data_loader(right_file_names, left_file_names)
 
         with tf.Session() as sess:
-            right_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=self.is_training, is_logging=self.is_logging, name='right')
-            left_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=self.is_training, is_logging=self.is_logging, name='left')
+            right_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='right')
+            left_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='left')
 
             self._saver = tf.train.Saver(var_list=tf.global_variables())
             ckpt_st = tf.train.get_checkpoint_state(os.path.join(flags.FLAGS.trained_weight_dir))
@@ -560,6 +556,7 @@ class Neuralnet:
 
             ensemble_pred = []
             ensemble_prob = []
+
             for _ in range(0, right_file_names.shape[0], flags.FLAGS.batch_size):
                 low_right_batch_x, low_left_batch_x, mid_right_batch_x, mid_left_batch_x, high_right_batch_x, high_left_batch_x = \
                     sess.run([low_right_batch_img, low_left_batch_img, mid_right_batch_img, mid_left_batch_img, high_right_batch_img, high_left_batch_img])
@@ -582,11 +579,21 @@ class Neuralnet:
 
             for prob in ensemble_prob:
                 print(prob)
-            # tf.train.write_graph(sess.graph_def, flags.FLAGS.deploy_log_dir, 'graph.pbtxt')
-            # self._saver.save(sess, os.path.join(flags.FLAGS.deploy_log_dir, 'model_graph'))
-            # print('>> Graph saved')
 
-neuralnet = Neuralnet(is_training=True, is_logging=False,  save_type='db')
-# neuralnet.cam_test()
-# neuralnet.test()
-neuralnet.train()
+            os.makedirs(flags.FLAGS.deploy_log_dir, exist_ok=True)
+
+            '''Graph Save'''
+            tf.train.write_graph(sess.graph_def, flags.FLAGS.deploy_log_dir, 'graph.pbtxt')
+            self._saver.save(sess, os.path.join(flags.FLAGS.deploy_log_dir, 'model_graph'))
+            print('>> Graph saved')
+
+            '''PB File Save'''
+            builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(flags.FLAGS.deploy_log_dir, 'eye_verification_param'))
+            builder.add_meta_graph_and_variables(sess, [tf.saved_model.tag_constants.SERVING])
+            builder.save()
+
+neuralnet = Neuralnet(is_logging=False,  save_type='db')
+neuralnet.cam_test()
+# neuralnet.train()
+# neuralnet.integration_test()
+# neuralnet.unit_test()

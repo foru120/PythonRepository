@@ -121,7 +121,7 @@ class Neuralnet:
             # self.db.close_conn()
 
     def cam_test(self, sort='grad_cam'):
-        sample_num = 20  # 클래스 당 테스트 샘플0 개수
+        sample_num = 3  # 클래스 당 테스트 샘플0 개수
         class_num = 2  # 전체 클래스 개수
         batch_size = sample_num * class_num
         img_size = (224, 224)
@@ -221,6 +221,11 @@ class Neuralnet:
             os.makedirs(os.path.join(flags.FLAGS.deploy_log_dir), exist_ok=True)
             tf.train.write_graph(sess.graph_def, flags.FLAGS.deploy_log_dir, 'graph.pbtxt')
             self._saver.save(sess, os.path.join(flags.FLAGS.deploy_log_dir, 'dementia_param'))
+
+            '''PB File Save'''
+            builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(flags.FLAGS.deploy_log_dir, 'dementia_cam'))
+            builder.add_meta_graph_and_variables(sess, [tf.saved_model.tag_constants.SERVING])
+            builder.save()
 
 neuralnet = Neuralnet(is_training=False)
 # neuralnet.cam_test(sort='guided_cam')

@@ -118,9 +118,9 @@ class Model(Layers):
                 self.cam_layer = layer
                 # layer = self.group_norm(inputs=layer, name='conv2d_8_group')
                 # layer = tf.nn.relu6(layer, name='conv2d_8_group')
-                layer = tf.layers.dropout(inputs=layer, rate=flags.FLAGS.dropout_rate, training=False, name='conv2d_8_dropout')
+                layer = tf.layers.dropout(inputs=layer, rate=flags.FLAGS.dropout_rate, training=self.is_training, name='conv2d_8_dropout')
                 layer = tf.reduce_mean(input_tensor=layer, axis=[1, 2], keep_dims=True, name='global_pool')
-                layer = tf.layers.dropout(inputs=layer, rate=flags.FLAGS.dropout_rate, training=False, name='conv2d_9_dropout')
+                layer = tf.layers.dropout(inputs=layer, rate=flags.FLAGS.dropout_rate, training=self.is_training, name='conv2d_9_dropout')
                 layer = self.conv2d(inputs=layer, filters=2, name='conv2d_9')
                 self.logits = tf.squeeze(input=layer, name='squeeze')
 

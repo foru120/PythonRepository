@@ -15,8 +15,8 @@ class Trainer(object):
         self.dataset_name = dataset_name
         self.num_classes = num_classes
 
-        self.log_dir = 'D:\\Source\\PythonRepository\\Hongbog\\EyeVerification\\slim\\train_log\\002\\{}'.format(orientation)
-        self.eval_dir = 'D:\\Source\\PythonRepository\\Hongbog\\EyeVerification\\slim\\train_log\\002_eval\\{}'.format(orientation)
+        self.log_dir = 'D:\\Source\\PythonRepository\\Hongbog\\EyeVerification\\slim\\train_log\\test\\{}'.format(orientation)
+        self.eval_dir = 'D:\\Source\\PythonRepository\\Hongbog\\EyeVerification\\slim\\train_log\\test_eval\\{}'.format(orientation)
 
     def _train_dataset(self):
         tr_low_dataset = TFRecordDataset(tfrecord_dir=flags.FLAGS.train_right_data_dir if self.orientation == 'right' else flags.FLAGS.train_left_data_dir,
@@ -77,16 +77,16 @@ class Trainer(object):
 
             """훈련 수행"""
             os.makedirs(self.log_dir, exist_ok=True)
-            # update_opt = [var for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES) if ('moving_mean' in var.name)
-            #               or ('moving_variance' in var.name)]
-            # update_opt = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
+            # update_ops = [] : 모든 update_ops 를 사용하지 않도록 설정
             train_op = slim.learning.create_train_op(
                 total_loss=tr_tot_loss,
-                # update_ops=None,  # update_ops = [] : 모든 update_ops 를 사용하지 않도록 설정
                 optimizer=opt,
+                update_ops=[var for var in tf.get_collection(tf.GraphKeys.UPDATE_OPS) if self.orientation in var.name],
                 variables_to_train= [var for var in tf.trainable_variables() if self.orientation in var.name]
             )
+
+            saver = tf.train.Saver(tf.global_variables())
 
             slim.learning.train(
                 train_op=train_op,
@@ -94,7 +94,8 @@ class Trainer(object):
                 number_of_steps=self.tr_step_num * epoch,
                 summary_op=summary_op,
                 save_summaries_secs=60,
-                save_interval_secs=60
+                save_interval_secs=60,
+                saver=saver
             )
 
     def validation(self):
@@ -113,12 +114,22 @@ class Trainer(object):
             })
 
             """평가 수행"""
-            init_op = tf.group(
-                tf.global_variables_initializer(),
-                tf.local_variables_initializer()
-            )
+            # init_op = tf.group(
+            #     tf.global_variables_initializer(),
+            #     tf.local_variables_initializer()
+            # )
 
             checkpoint_path = tf.train.latest_checkpoint(self.log_dir)
+
+            os.makedirs(self.eval_dir, exist_ok=True)
+
+            print([var for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)])
+            print([var for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES) if ('moving_mean' in var.name)
+                          or ('moving_variance' in var.name)])
+
+            restore_variables = [var for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES)] + \
+                                [var for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES) if
+                                 ('moving_mean' in var.name)]
 
             slim.get_or_create_global_step()
             metric_values = slim.evaluation.evaluate_once(
@@ -126,15 +137,18 @@ class Trainer(object):
                 checkpoint_path=checkpoint_path,
                 logdir=self.eval_dir,
                 num_evals=self.ts_step_num,
-                initial_op=init_op,
+                # initial_op=init_op,
                 eval_op=list(names_to_updates.values()),  # names_to_updates.values() -> type 이 dict_values 이어서 list 로 변환시켜주어야 한다.
-                final_op=list(names_to_values.values())
+                final_op=list(names_to_values.values()),
+                variables_to_restore=tf.global_variables()
             )
+
+            print(tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'right/high_resolution_network/residual_block_18/batch_norm_2/moving_variance:0')[0])
 
             names_to_values = dict(zip(names_to_values.keys(), metric_values))
             for name in names_to_values:
                 print('%s: %f' % (name, names_to_values[name]))
 
 trainer = Trainer(orientation='right', dataset_name='eye', num_classes=7)
-trainer.validation()
-# trainer.train(epoch=10)
+# trainer.validation()
+trainer.train(epoch=30)

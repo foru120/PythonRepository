@@ -55,8 +55,8 @@ class DataLoader:
         with tf.variable_scope('train_random_brightness'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.random_brightness(x, max_delta=0.5)
             x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.random_brightness(x, max_delta=0.5)
             x = tf.divide(x, 255.)
         return x, y
 
@@ -64,8 +64,8 @@ class DataLoader:
         with tf.variable_scope('train_random_contrast'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.random_contrast(x, lower=0.2, upper=2.0)
             x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.random_contrast(x, lower=0.2, upper=2.0)
             x = tf.divide(x, 255.)
         return x, y
 
@@ -73,8 +73,8 @@ class DataLoader:
         with tf.variable_scope('train_random_hue'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.random_hue(x, max_delta=0.08)
             x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.random_hue(x, max_delta=0.08)
             x = tf.divide(x, 255.)
         return x, y
 
@@ -82,8 +82,8 @@ class DataLoader:
         with tf.variable_scope('train_random_saturation'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.random_saturation(x,lower=0.2, upper=2.0)
             x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.random_saturation(x,lower=0.2, upper=2.0)
             x = tf.divide(x, 255.)
         return x, y
 

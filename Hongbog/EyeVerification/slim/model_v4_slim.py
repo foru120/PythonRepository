@@ -12,8 +12,8 @@ class Model:
 
     def _build_graph(self):
         def _batch_norm(inputs, act=tf.nn.relu6, scope='batch_norm'):
-            with slim.arg_scope([slim.batch_norm], decay=0.999, epsilon=0.001, reuse=False, zero_debias_moving_mean=False, scope=scope):
-                return slim.batch_norm(inputs=inputs, activation_fn=act, is_training=self.is_training)
+            with slim.arg_scope([slim.batch_norm], decay=0.9, epsilon=0.001, reuse=False, scope=scope):
+                return slim.batch_norm(inputs=inputs, activation_fn=act, scale=True, is_training=self.is_training)
 
         def _residual_block(inputs, num_outputs, kernel_size, stride, padding='SAME', scope='residual_block'):
             with tf.variable_scope(scope):

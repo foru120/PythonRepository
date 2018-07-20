@@ -7,7 +7,6 @@ from tensorflow.python.framework import ops
 from tensorflow.contrib.graph_editor import subgraph
 from tensorflow.core.framework import attr_value_pb2
 from tensorflow.python.util import compat
-import darkon
 
 class GradCAM:
     def __init__(self, instance, sample_size):
@@ -43,7 +42,7 @@ class GradCAM:
             # self.cam = tf.maximum(cam, 0, name='outputs')
 
             cam_layer = self.instance.cam_layer
-            loss = tf.reduce_mean(tf.multiply(self.instance.logits, self.instance.prob), axis=1)
+            loss = tf.reduce_mean(tf.multiply(self.instance.logits, self.instance.prob), axis=-1)
             grads = tf.gradients(ys=loss, xs=cam_layer)[0]  # (B, H, W, C)
             norm_grads = self.normalize(grads)
 
