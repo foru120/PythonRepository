@@ -1,2 +1,0 @@
-model_checkpoint_path: "D:/Source/PythonRepository/Hongbog/SuperResolution/train_log/0002/image_processing_param.ckpt"
-all_model_checkpoint_paths: "D:/Source/PythonRepository/Hongbog/SuperResolution/train_log/0002/image_processing_param.ckpt"
