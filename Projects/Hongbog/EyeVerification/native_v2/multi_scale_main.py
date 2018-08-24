@@ -5,10 +5,10 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from Hongbog.EyeVerification.native_v2.constants import *
-from Hongbog.EyeVerification.native_v2.multi_scale_mobilenet_v2_model import Model
-from Hongbog.EyeVerification.native_v2.multi_scale_dataloader import DataLoader
-from Hongbog.EyeVerification.native_v2.cam import GradCAM
+from Projects.Hongbog.EyeVerification.native_v2.constants import *
+from Projects.Hongbog.EyeVerification.native_v2.multi_scale_mobilenet_v2_model import Model
+from Projects.Hongbog.EyeVerification.native_v2.multi_scale_dataloader import DataLoader
+from Projects.Hongbog.EyeVerification.native_v2.cam import GradCAM
 
 class Neuralnet:
 
@@ -56,15 +56,19 @@ class Neuralnet:
                 os.makedirs(os.path.join(flags.FLAGS.tensorboard_log_dir, 'test', 'left'), exist_ok=True)
 
             '''텐서플로우 그래프 저장'''
-            tf.train.write_graph(sess.graph_def, flags.FLAGS.trained_weight_dir, 'graph.pbtxt')
+            tf.train.write_graph(sess.graph_def, flags.FLAGS.saved_weight_dir, 'graph.pbtxt')
             print('>> Graph saved')
 
-            self._saver = tf.train.Saver(var_list=tf.global_variables())
+            '''Saver 생성'''
+            var_list = [var for var in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES) if 'conv2d_output' not in var.name]
+            self._restore = tf.train.Saver(var_list=var_list)
             ckpt_st = tf.train.get_checkpoint_state(os.path.join(flags.FLAGS.trained_weight_dir))
+
+            self._saver = tf.train.Saver(var_list=tf.global_variables())
 
             if ckpt_st is not None:
                 '''restore 시에는 tf.global_variables_initializer() 가 필요 없다.'''
-                #self._saver.restore(sess, ckpt_st.model_checkpoint_path)
+                self._restore.restore(sess, ckpt_st.model_checkpoint_path)
                 print('>> Model Restored')
 
             '''텐서보드 로깅을 위한 FileWriter 생성'''
@@ -175,7 +179,7 @@ class Neuralnet:
                 # print(sess.run(kernel))
 
                 '''CKPT, parameter File Save'''
-                self._saver.save(sess, os.path.join(flags.FLAGS.trained_weight_dir, 'eye_verification_param'), global_step=epoch)
+                self._saver.save(sess, os.path.join(flags.FLAGS.saved_weight_dir, 'eye_verification_param'), global_step=epoch)
 
                 ## PB File Save
                 # builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(flags.FLAGS.trained_weight_dir, 'eye_verification_param'))
@@ -207,9 +211,6 @@ class Neuralnet:
         with tf.Session(config=config) as sess:
             right_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='right')
             left_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='left')
-
-            print('>> Tensorflow session built. Variables initialized')
-            sess.run(tf.global_variables_initializer())
 
             self._saver = tf.train.Saver(var_list=tf.global_variables())
             ckpt_st = tf.train.get_checkpoint_state(os.path.join(flags.FLAGS.trained_weight_dir))
@@ -361,12 +362,27 @@ class Neuralnet:
 
             return right_file_names, left_file_names
 
+        def tf_equalize_histogram(image):
+            values_range = tf.constant([0., 255.], dtype=tf.float32)
+            histogram = tf.histogram_fixed_width(tf.to_float(image), values_range, 256)
+            cdf = tf.cumsum(histogram)
+            cdf_min = cdf[tf.reduce_min(tf.where(tf.greater(cdf, 0)))]
+
+            img_shape = tf.shape(image)
+            pix_cnt = img_shape[-3] * img_shape[-2]
+            px_map = tf.round(tf.to_float(cdf - cdf_min) * 255. / tf.to_float(pix_cnt - 1))
+            px_map = tf.cast(px_map, tf.uint8)
+
+            eq_hist = tf.expand_dims(tf.gather_nd(px_map, tf.cast(image, tf.int32)), 2)
+            return eq_hist
+
         def low_normal_data(path):
             with tf.variable_scope('low_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=low_img_size)
-                data = tf.divide(data, 255.)
+                data = tf_equalize_histogram(data)
+                data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 
         def mid_normal_data(path):
@@ -374,7 +390,8 @@ class Neuralnet:
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=mid_img_size)
-                data = tf.divide(data, 255.)
+                data = tf_equalize_histogram(data)
+                data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 
         def high_normal_data(path):
@@ -382,7 +399,8 @@ class Neuralnet:
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=high_img_size)
-                data = tf.divide(data, 255.)
+                data = tf_equalize_histogram(data)
+                data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 
         def data_loader(right_file_names, left_file_names):
@@ -453,9 +471,9 @@ class Neuralnet:
             save_matplot_img(right_cam_outputs, left_cam_outputs, sample_num, class_num)
 
     def unit_test(self):
-        low_img_size, mid_img_size, high_img_size = (60, 160), (80, 200), (100, 240)
-        right_sample_path = 'G:\\04_dataset\\eye_verification\\eye_only_v3\\test\\right\\6'
-        left_sample_path = 'G:\\04_dataset\\eye_verification\\eye_only_v3\\test\\left\\6'
+        low_img_size, mid_img_size, high_img_size = (46, 100), (70, 150), (92, 200)
+        right_sample_path = 'G:/04_dataset/eye_verification/eye_dataset_v2/train/right/0'
+        left_sample_path = 'G:/04_dataset/eye_verification/eye_dataset_v2/train/left/0'
 
         def get_file_names():
             right_file_names, left_file_names = [], []
@@ -479,28 +497,45 @@ class Neuralnet:
 
             return right_file_names, left_file_names
 
+        def tf_equalize_histogram(image):
+            values_range = tf.constant([0., 255.], dtype=tf.float32)
+            histogram = tf.histogram_fixed_width(tf.to_float(image), values_range, 256)
+            cdf = tf.cumsum(histogram)
+            cdf_min = cdf[tf.reduce_min(tf.where(tf.greater(cdf, 0)))]
+
+            img_shape = tf.shape(image)
+            pix_cnt = img_shape[-3] * img_shape[-2]
+            px_map = tf.round(tf.to_float(cdf - cdf_min) * 255. / tf.to_float(pix_cnt - 1))
+            px_map = tf.cast(px_map, tf.uint8)
+
+            eq_hist = tf.expand_dims(tf.gather_nd(px_map, tf.cast(image, tf.int32)), 2)
+            return eq_hist
+
         def low_normal_data(path):
             with tf.variable_scope('low_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
-                data = tf.image.resize_images(data, size=low_img_size)
-                data = tf.divide(data, 255.)
+                data = tf.image.resize_images(data, size=low_img_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+                data = tf_equalize_histogram(data)
+                data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 
         def mid_normal_data(path):
             with tf.variable_scope('mid_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
-                data = tf.image.resize_images(data, size=mid_img_size)
-                data = tf.divide(data, 255.)
+                data = tf.image.resize_images(data, size=mid_img_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+                data = tf_equalize_histogram(data)
+                data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 
         def high_normal_data(path):
             with tf.variable_scope('high_normal_data'):
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
-                data = tf.image.resize_images(data, size=high_img_size)
-                data = tf.divide(data, 255.)
+                data = tf.image.resize_images(data, size=high_img_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+                data = tf_equalize_histogram(data)
+                data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 
         def data_loader(right_file_names, left_file_names):
@@ -543,7 +578,7 @@ class Neuralnet:
             left_model = Model(sess=sess, lr=flags.FLAGS.learning_rate, is_training=False, is_logging=self.is_logging, name='left')
 
             self._saver = tf.train.Saver(var_list=tf.global_variables())
-            ckpt_st = tf.train.get_checkpoint_state(os.path.join(flags.FLAGS.trained_weight_dir))
+            ckpt_st = tf.train.get_checkpoint_state(flags.FLAGS.trained_weight_dir)
 
             if ckpt_st is not None:
                 '''restore 시에는 tf.global_variables_initializer() 가 필요 없다.'''
@@ -580,6 +615,11 @@ class Neuralnet:
             for prob in ensemble_prob:
                 print(prob)
 
+            ensemble_prob = np.asarray(ensemble_prob)
+            low_acc = ensemble_prob[ensemble_prob < 1.99]
+            print(np.sort(low_acc))
+            print(len(low_acc))
+
             os.makedirs(flags.FLAGS.deploy_log_dir, exist_ok=True)
 
             '''Graph Save'''
@@ -588,12 +628,12 @@ class Neuralnet:
             print('>> Graph saved')
 
             '''PB File Save'''
-            builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(flags.FLAGS.deploy_log_dir, 'eye_verification_param'))
-            builder.add_meta_graph_and_variables(sess, [tf.saved_model.tag_constants.SERVING])
-            builder.save()
+            # builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(flags.FLAGS.deploy_log_dir, 'eye_verification_param'))
+            # builder.add_meta_graph_and_variables(sess, [tf.saved_model.tag_constants.SERVING])
+            # builder.save()
 
 neuralnet = Neuralnet(is_logging=False,  save_type='db')
-neuralnet.cam_test()
-# neuralnet.train()
+# neuralnet.cam_test()
+neuralnet.train()
 # neuralnet.integration_test()
 # neuralnet.unit_test()

@@ -5,10 +5,10 @@ import os
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
-from Hongbog.EyeVerification.native_v4.constants import *
-from Hongbog.EyeVerification.native_v4.multi_scale_model import Model
-from Hongbog.EyeVerification.native_v4.multi_scale_dataloader import DataLoader
-from Hongbog.EyeVerification.native_v4.cam import GradCAM
+from Projects.Hongbog.EyeVerification.native_v4.constants import *
+from Projects.Hongbog.EyeVerification.native_v4.multi_scale_model import Model
+from Projects.Hongbog.EyeVerification.native_v4.multi_scale_dataloader import DataLoader
+from Projects.Hongbog.EyeVerification.native_v4.cam import GradCAM
 
 class Neuralnet:
 
@@ -592,8 +592,8 @@ class Neuralnet:
             builder.add_meta_graph_and_variables(sess, [tf.saved_model.tag_constants.SERVING])
             builder.save()
 
-neuralnet = Neuralnet(is_logging=False,  save_type='db')
-neuralnet.cam_test()
+neuralnet = Neuralnet(is_logging=True,  save_type='db')
+# neuralnet.cam_test()
 # neuralnet.train()
 # neuralnet.integration_test()
-# neuralnet.unit_test()
+neuralnet.unit_test()

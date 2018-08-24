@@ -4,6 +4,10 @@ import numpy as np
 import re
 
 class DataLoader:
+    LOW_IMG_SIZE = (46, 100)
+    MID_IMG_SIZE = (70, 150)
+    HIGH_IMG_SIZE = (92, 200)
+
     def __init__(self, batch_size, train_right_root_path, test_right_root_path, train_left_root_path, test_left_root_path):
         self.batch_size = batch_size
         self.train_right_root_path = train_right_root_path
@@ -73,6 +77,20 @@ class DataLoader:
             self.test_left_x = tf.convert_to_tensor(test_left_x, dtype=tf.string, name='test_left_x')
             self.test_left_y = tf.convert_to_tensor(test_left_y, dtype=tf.int64, name='test_left_y')
 
+    def tf_equalize_histogram(self, image):
+        values_range = tf.constant([0., 255.], dtype=tf.float32)
+        histogram = tf.histogram_fixed_width(tf.to_float(image), values_range, 256)
+        cdf = tf.cumsum(histogram)
+        cdf_min = cdf[tf.reduce_min(tf.where(tf.greater(cdf, 0)))]
+
+        img_shape = tf.shape(image)
+        pix_cnt = img_shape[-3] * img_shape[-2]
+        px_map = tf.round(tf.to_float(cdf - cdf_min) * 255. / tf.to_float(pix_cnt - 1))
+        px_map = tf.cast(px_map, tf.uint8)
+
+        eq_hist = tf.expand_dims(tf.gather_nd(px_map, tf.cast(image, tf.int32)), 2)
+        return eq_hist
+
     '''
         Low Resolution Augmentation
     '''
@@ -80,7 +98,8 @@ class DataLoader:
         with tf.variable_scope('train_low_normal'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(60, 160), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
@@ -88,48 +107,61 @@ class DataLoader:
         with tf.variable_scope('train_low_crop'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(70, 180), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.random_crop(value=x, size=(60, 160, 1))
+            x = tf.image.resize_images(x, size=(56, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.random_crop(value=x, size=(DataLoader.LOW_IMG_SIZE[0], DataLoader.LOW_IMG_SIZE[1], 1))
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_low_brightness(self, x, y):
         with tf.variable_scope('train_low_brightness'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(60, 160), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.image.random_brightness(x, max_delta=0.5)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.random_brightness(x, max_delta=80.)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_low_contrast(self, x, y):
         with tf.variable_scope('train_low_contrast'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(60, 160), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_contrast(x, lower=0.2, upper=2.0)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_low_hue(self, x, y):
         with tf.variable_scope('train_low_hue'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(60, 160), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_hue(x, max_delta=0.08)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_low_saturation(self, x, y):
         with tf.variable_scope('train_low_saturation'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(60, 160), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_saturation(x,lower=0.2, upper=2.0)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
@@ -140,7 +172,8 @@ class DataLoader:
         with tf.variable_scope('train_mid_normal'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(80, 200), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
@@ -148,48 +181,61 @@ class DataLoader:
         with tf.variable_scope('train_mid_crop'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(90, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.random_crop(value=x, size=(80, 200, 1))
+            x = tf.image.resize_images(x, size=(78, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.random_crop(value=x, size=(DataLoader.MID_IMG_SIZE[0], DataLoader.MID_IMG_SIZE[1], 1))
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_mid_brightness(self, x, y):
         with tf.variable_scope('train_mid_brightness'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(80, 200), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.image.random_brightness(x, max_delta=0.5)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.random_brightness(x, max_delta=80.)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_mid_contrast(self, x, y):
         with tf.variable_scope('train_mid_contrast'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(80, 200), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_contrast(x, lower=0.2, upper=2.0)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_mid_hue(self, x, y):
         with tf.variable_scope('train_mid_hue'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(80, 200), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_hue(x, max_delta=0.08)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_mid_saturation(self, x, y):
         with tf.variable_scope('train_mid_saturation'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(80, 200), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_saturation(x, lower=0.2, upper=2.0)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
@@ -200,7 +246,8 @@ class DataLoader:
         with tf.variable_scope('train_high_normal'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(100, 240), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
@@ -208,48 +255,61 @@ class DataLoader:
         with tf.variable_scope('train_high_crop'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(110, 260), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.random_crop(value=x, size=(100, 240, 1))
+            x = tf.image.resize_images(x, size=(102, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.random_crop(value=x, size=(DataLoader.HIGH_IMG_SIZE[0], DataLoader.HIGH_IMG_SIZE[1], 1))
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_high_brightness(self, x, y):
         with tf.variable_scope('train_high_brightness'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(100, 240), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.image.random_brightness(x, max_delta=0.5)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.random_brightness(x, max_delta=80.)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_high_contrast(self, x, y):
         with tf.variable_scope('train_high_contrast'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(100, 240), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_contrast(x, lower=0.2, upper=2.0)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_high_hue(self, x, y):
         with tf.variable_scope('train_high_hue'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(100, 240), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_hue(x, max_delta=0.08)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
     def train_high_saturation(self, x, y):
         with tf.variable_scope('train_high_saturation'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(100, 240), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.decode_png(x, channels=3, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.image.random_saturation(x, lower=0.2, upper=2.0)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
@@ -338,7 +398,8 @@ class DataLoader:
         with tf.variable_scope('test_low_normal'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(60, 160))
+            x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
@@ -346,7 +407,8 @@ class DataLoader:
         with tf.variable_scope('test_mid_normal'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(80, 200))
+            x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 
@@ -354,7 +416,8 @@ class DataLoader:
         with tf.variable_scope('test_high_normal_data'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(100, 240))
+            x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE)
+            x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
 

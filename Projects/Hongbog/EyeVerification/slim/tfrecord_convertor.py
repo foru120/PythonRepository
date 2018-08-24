@@ -2,7 +2,7 @@ import os
 import re
 import math
 import numpy as np
-from Hongbog.EyeVerification.slim.tfrecord_features import *
+from Projects.Hongbog.EyeVerification.slim.tfrecord_features import *
 
 class ImageReader(object):
     """Helper class that provides TensorFlow image coding utilities."""

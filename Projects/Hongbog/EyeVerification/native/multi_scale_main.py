@@ -555,8 +555,8 @@ class Neuralnet:
                 self._saver.restore(sess, ckpt_st.model_checkpoint_path)
                 print('>> Model Restored')
 
-            # kernel = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'right/output_layer/logit/W_conv2d')[0]
-            # print(sess.run(kernel))
+            kernel = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, 'right/output_layer/logit/W_conv2d')[0]
+            print(sess.run(kernel))
 
             ensemble_pred = []
             ensemble_prob = []

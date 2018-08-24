@@ -1,6 +1,6 @@
-from Hongbog.EyeVerification.slim.model_v4_slim import Model
-from Hongbog.EyeVerification.slim.dataloader import TFRecordDataset
-from Hongbog.EyeVerification.slim.constants import *
+from Projects.Hongbog.EyeVerification.slim.model_v4_slim import Model
+from Projects.Hongbog.EyeVerification.slim.dataloader import TFRecordDataset
+from Projects.Hongbog.EyeVerification.slim.constants import *
 
 import tensorflow.contrib.slim as slim
 import os

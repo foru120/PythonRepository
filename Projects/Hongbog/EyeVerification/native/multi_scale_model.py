@@ -33,9 +33,9 @@ class Layers:
             if self.is_training:
                 batch_mean, batch_var = tf.nn.moments(inputs, [0, 1, 2])
                 train_mean = tf.assign(moving_mean,
-                                        moving_mean * decay + batch_mean * (1 - decay))
+                                       moving_mean * decay + batch_mean * (1 - decay))
                 train_var = tf.assign(moving_var,
-                                       moving_var * decay + batch_var * (1 - decay))
+                                      moving_var * decay + batch_var * (1 - decay))
                 with tf.control_dependencies([train_mean, train_var]):
                     return tf.nn.batch_normalization(inputs,
                                                      batch_mean, batch_var, beta, gamma, epsilon)

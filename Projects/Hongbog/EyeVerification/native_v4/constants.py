@@ -21,15 +21,15 @@ flags.DEFINE_string('left_test_data_path',
 
 '''학습 로그 경로'''
 flags.DEFINE_string('trained_weight_dir',
-                    'D:\\Source\\PythonRepository\\Hongbog\\EyeVerification\\native_v4\\train_log\\002',
+                    'D:\\Source\\PythonRepository\\Projects\\Hongbog\\EyeVerification\\native_v4\\train_log\\003',
                     '훈련된 가중치 값 저장 경로')
 
 flags.DEFINE_string('tensorboard_log_dir',
-                    'D:\\Source\\PythonRepository\\Hongbog\\EyeVerification\\native_v4\\tensorboard_log\\002',
+                    'D:\\Source\\PythonRepository\\Projects\\Hongbog\\EyeVerification\\native_v4\\tensorboard_log\\003',
                     '텐서보드에서 모니터링 변수 저장 경로')
 
 flags.DEFINE_string('deploy_log_dir',
-                    'D:\\Source\\PythonRepository\\Hongbog\\EyeVerification\\native_v4\\deploy_log\\002',
+                    'D:\\Source\\PythonRepository\\Projects\\Hongbog\\EyeVerification\\native_v4\\deploy_log\\003',
                     'Model Deploy 시 사용될 체크포인트 파일 저장 경로')
 
 '''하이퍼 파라미터'''

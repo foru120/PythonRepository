@@ -36,3 +36,43 @@ Tensor("left/output_module/softmax:0", shape=(?, 7), dtype=float32)
 ▣ 002
  - tf.image.resize_nearest_neighbor -> tf.layers.conv2d_transpose 로 변경
  - 나머지 구성은 001 과 동일
+
+▣ 003
+ - Data Augmentation 에서 equalization 추가
+ - 나머지 구성은 002 과 동일
+
+▣ 004
+ - eye_dataset_v2 로 학습
+ - scale -> (60, 160), (80, 200), (100, 240)
+
+▣ 005
+ - equalization
+ - eye_dataset_v2 로 학습
+ - scale -> (46, 100), (70, 150), (92, 200)
+
+▣ 006
+ - no equalization
+ - eye_dataset_v1 로 학습
+ - scale -> (46, 100), (70, 150), (92, 200)
+ - epoch: 20
+ - accuracy: 87%
+
+▣ 007
+ - no equalization
+ - eye_dataset_v1 로 학습
+ - eye_dataset_v2 로 학습
+ - scale -> (46, 100), (70, 150), (92, 200)
+ - accuracy: 85%
+
+▣ 008
+ - equalization
+ - eye_dataset_v1 학습
+ - scale -> (46, 100), (70, 150), (92, 200)
+ - accuracy: 86%
+
+▣ 009
+ - equalization
+ - eye_dataset_v1 학습
+ - eye_dataset_v2 학습
+ - scale -> (46, 100), (70, 150), (92, 200)
+ - accuracy: 86%

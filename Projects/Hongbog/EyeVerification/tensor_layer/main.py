@@ -421,5 +421,5 @@ neuralnet = Neuralnet(is_train=False, save_type='db')
 neuralnet.test()
 # neuralnet.train()
 
-# from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
-# print_tensors_in_checkpoint_file(file_name='D:\\05_source\\PythonRepository\\Hongbog\\EyeVerification\\train_log\\2th_test\\eye_verification_param-120', tensor_name='', all_tensors=True)
+from tensorflow.python.tools.inspect_checkpoint import print_tensors_in_checkpoint_file
+print_tensors_in_checkpoint_file(file_name='D:\\05_source\\PythonRepository\\Hongbog\\EyeVerification\\train_log\\2th_test\\eye_verification_param-120', tensor_name='', all_tensors=True)

@@ -1,4 +1,4 @@
-from Hongbog.EyeVerification.native_v4.constants import *
+from Projects.Hongbog.EyeVerification.native_v4.constants import *
 import tensorflow.contrib.slim as slim
 
 class Layers:
@@ -196,31 +196,32 @@ class Model(Layers):
                 a_icpt_layer = self.inception_resnet_A(inputs=tot_layer, filters=320, name='inception_module_A')
                 icpt_layer_a = self.squeeze_excitation(inputs=a_icpt_layer, num_outputs=320, name='squeeze_excitation_A')
                 icpt_layer_a = self.conv2d(inputs=icpt_layer_a, filters=100, name='conv2d_A')
-                icpt_layer_a = tf.reduce_mean(input_tensor=icpt_layer_a, axis=[1, 2], keep_dims=True, name='reduce_mean_A')
+                # icpt_layer_a = tf.reduce_mean(input_tensor=icpt_layer_a, axis=[1, 2], keep_dims=True, name='reduce_mean_A')
                 # icpt_layer_a = tf.squeeze(input=icpt_layer_a, axis=[1, 2], name='squeeze_A')
 
                 b_icpt_layer = self.inception_resnet_A(inputs=a_icpt_layer, filters=320, name='inception_module_B')
                 icpt_layer_b = self.squeeze_excitation(inputs=b_icpt_layer, num_outputs=320, name='squeeze_excitation_B')
                 icpt_layer_b = self.conv2d(inputs=icpt_layer_b, filters=100, name='conv2d_B')
-                icpt_layer_b = tf.reduce_mean(input_tensor=icpt_layer_b, axis=[1, 2], keep_dims=True, name='reduce_mean_B')
+                # icpt_layer_b = tf.reduce_mean(input_tensor=icpt_layer_b, axis=[1, 2], keep_dims=True, name='reduce_mean_B')
                 # icpt_layer_b = tf.squeeze(input=icpt_layer_b, axis=[1, 2], name='squeeze_B')
 
-                icpt_layer_c = tf.layers.max_pooling2d(inputs=b_icpt_layer, pool_size=2, strides=2, padding='same', name='max_pool_C')
-                icpt_layer_c = self.inception_resnet_A(inputs=icpt_layer_c, filters=320, name='inception_module_C')
+                # icpt_layer_c = tf.layers.max_pooling2d(inputs=b_icpt_layer, pool_size=2, strides=2, padding='same', name='max_pool_C')
+                icpt_layer_c = self.inception_resnet_A(inputs=b_icpt_layer, filters=320, name='inception_module_C')
                 icpt_layer_c = self.squeeze_excitation(inputs=icpt_layer_c, num_outputs=320, name='squeeze_excitation_C')
-                icpt_layer_c = tf.layers.average_pooling2d(inputs=icpt_layer_c, pool_size=2, strides=2, padding='same', name='global_pool_C')
+                # icpt_layer_c = tf.layers.average_pooling2d(inputs=icpt_layer_c, pool_size=2, strides=2, padding='same', name='global_pool_C')
                 icpt_layer_c = self.conv2d(inputs=icpt_layer_c, filters=100, name='conv2d_C')
-                icpt_layer_c = tf.reduce_mean(input_tensor=icpt_layer_c, axis=[1, 2], keep_dims=True, name='reduce_mean_C')
+                # icpt_layer_c = tf.reduce_mean(input_tensor=icpt_layer_c, axis=[1, 2], keep_dims=True, name='reduce_mean_C')
                 # icpt_layer_c = tf.squeeze(input=icpt_layer_c, axis=[1, 2], name='squeeze_C')
 
                 last_layer = tf.concat([icpt_layer_a, icpt_layer_b, icpt_layer_c], axis=-1, name='inception_concat')
-                last_layer = self.conv2d(inputs=last_layer, filters=100, name='conv2d_last')
+                # last_layer = self.conv2d(inputs=last_layer, filters=100, name='conv2d_last')
                 self.cam_layer = last_layer
 
                 if self.is_logging:
                     self.summary_values.append(tf.summary.histogram('output_network', tot_layer))
 
                 last_layer = self.dropout(inputs=last_layer, rate=flags.FLAGS.dropout_rate, name='last_dropout')
+                last_layer = tf.reduce_mean(last_layer, axis=[1, 2], keep_dims=True, name='reduce_mean_last')
                 last_layer = self.conv2d(inputs=last_layer, filters=7, name='conv2d_output')
                 self.logits = tf.squeeze(input=last_layer, axis=[1, 2], name='squeeze_output')
 

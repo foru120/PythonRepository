@@ -2,11 +2,6 @@ import tensorflow as tf
 from PIL import Image
 import numpy as np
 import cv2
-from tensorflow.python.ops import gen_nn_ops
-from tensorflow.python.framework import ops
-from tensorflow.contrib.graph_editor import subgraph
-from tensorflow.core.framework import attr_value_pb2
-from tensorflow.python.util import compat
 
 class GradCAM:
     def __init__(self, instance, sample_size, name='grad_cam'):

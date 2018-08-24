@@ -1,5 +1,5 @@
 import tensorflow.contrib.slim as slim
-from Hongbog.EyeVerification.slim.constants import *
+from Projects.Hongbog.EyeVerification.slim.constants import *
 import math
 
 class Model:
