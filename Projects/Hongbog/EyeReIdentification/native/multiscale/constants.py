@@ -8,7 +8,7 @@ flags.DEFINE_string('right_train_data_path',
                     '오른쪽 눈 학습 데이터 경로')
 
 flags.DEFINE_string('right_test_data_path',
-                    'G:/04_dataset/eye_verification/eye_dataset_v2/test/right',
+                    'G:/04_dataset/eye_verification/eye_dataset_v2/train/right',
                     '오른쪽 눈 테스트 데이터 경로')
 
 flags.DEFINE_string('left_train_data_path',
@@ -16,7 +16,7 @@ flags.DEFINE_string('left_train_data_path',
                     '왼쪽 눈 학습 데이터 경로')
 
 flags.DEFINE_string('left_test_data_path',
-                    'G:/04_dataset/eye_verification/eye_dataset_v2/test/left',
+                    'G:/04_dataset/eye_verification/eye_dataset_v2/train/left',
                     '왼쪽 눈 테스트 데이터 경로')
 
 '''학습 로그 경로'''

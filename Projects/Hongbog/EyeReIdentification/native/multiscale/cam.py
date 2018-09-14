@@ -13,7 +13,7 @@ class GradCAM:
         self.instance = instance
         self.sample_size = sample_size
         self.name = name
-        self.image_size = (200, 80)  # (width, height)
+        self.image_size = (150, 70)  # (width, height)
         self.num_classes = 7  # class 개수
 
     def normalize(self, x):

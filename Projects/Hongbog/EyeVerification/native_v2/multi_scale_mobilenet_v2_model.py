@@ -161,7 +161,7 @@ class Model(Layers):
 
                 tot_layer = self.dropout(inputs=tot_layer, rate=flags.FLAGS.dropout_rate, name='concat_dropout')
                 tot_layer = tf.reduce_mean(input_tensor=tot_layer, axis=[1, 2], keep_dims=True, name='global_pool')
-                tot_layer = self.conv2d(inputs=tot_layer, filters=9, name='conv2d_output')
+                tot_layer = self.conv2d(inputs=tot_layer, filters=20, name='conv2d_output')
                 self.logits = tf.squeeze(input=tot_layer, axis=[1, 2], name='squeeze_output')
 
             with tf.variable_scope('output_module'):

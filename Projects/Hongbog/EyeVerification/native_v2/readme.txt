@@ -52,21 +52,24 @@ Tensor("left/output_module/softmax:0", shape=(?, 7), dtype=float32)
 
 ▣ 006
  - no equalization
- - eye_dataset_v1 로 학습
+ - eye_dataset_v1 학습
+ - tf.image.random_brightness -> 80.
  - scale -> (46, 100), (70, 150), (92, 200)
  - epoch: 20
  - accuracy: 87%
 
 ▣ 007
  - no equalization
- - eye_dataset_v1 로 학습
- - eye_dataset_v2 로 학습
+ - eye_dataset_v1 학습
+ - eye_dataset_v2 학습
+ - tf.image.random_brightness -> 80.
  - scale -> (46, 100), (70, 150), (92, 200)
  - accuracy: 85%
 
 ▣ 008
  - equalization
  - eye_dataset_v1 학습
+ - tf.image.random_brightness -> 80.
  - scale -> (46, 100), (70, 150), (92, 200)
  - accuracy: 86%
 
@@ -74,5 +77,25 @@ Tensor("left/output_module/softmax:0", shape=(?, 7), dtype=float32)
  - equalization
  - eye_dataset_v1 학습
  - eye_dataset_v2 학습
+ - tf.image.random_brightness -> 80.
  - scale -> (46, 100), (70, 150), (92, 200)
- - accuracy: 86%
+ - accuracy: 85%
+
+▣ 010
+ - equalization
+ - tf.image.random_brightness -> 80.
+ - eye_dataset_v2 학습
+ - scale -> (46, 100), (70, 150), (92, 200)
+ - accuracy: 85%
+
+▣ 011
+ - no equalization
+ - eye_dataset_v2 학습
+ - scale -> (46, 100), (70, 150), (92, 200)
+ - accuracy: 99.9%
+
+▣ 012
+ - equalization
+ - eye_dataset_v2 학습
+ - scale -> (46, 100), (70, 150), (92, 200)
+ - accuracy: 99.9%

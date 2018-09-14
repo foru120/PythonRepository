@@ -6,11 +6,11 @@ flags.DEFINE_string('data_path',
                     '데이터 셋 저장 경로')
 
 flags.DEFINE_string('trained_param_path',
-                    'D:/Source/PythonRepository/Projects/Hongbog/DementiaDiagnosis/mobilenet_v2/native/train_log/1th_test',
+                    'D:/Source/PythonRepository/Projects/Hongbog/DementiaDiagnosis/mobilenet_v2/native/train_log/2th_test',
                     '훈련된 파라미터 값 저장 경로')
 
 flags.DEFINE_string('deploy_log_dir',
-                    'D:/Source/PythonRepository/Projects/Hongbog/DementiaDiagnosis/mobilenet_v2/native/deploy_log/1th_test',
+                    'D:/Source/PythonRepository/Projects/Hongbog/DementiaDiagnosis/mobilenet_v2/native/deploy_log/2th_test',
                     'Model Deploy 시 사용될 체크포인트 파일 저장 경로')
 
 flags.DEFINE_integer('epochs', 200, '훈련 시 에폭 수')

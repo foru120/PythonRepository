@@ -178,13 +178,13 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1, dtype=tf.uint8)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
             query_x = tf.image.resize_images(query_x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -192,16 +192,16 @@ class DataLoader:
         with tf.variable_scope('train_low_crop'):
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1)
-            ori_x = tf.image.resize_images(ori_x, size=(56, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            ori_x = tf.image.resize_images(ori_x, size=(60, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             ori_x = tf.random_crop(value=ori_x, size=(DataLoader.LOW_IMG_SIZE[0], DataLoader.LOW_IMG_SIZE[1], 1))
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
-            query_x = tf.image.resize_images(query_x, size=(56, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            query_x = tf.image.resize_images(query_x, size=(60, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             query_x = tf.random_crop(value=query_x, size=(DataLoader.LOW_IMG_SIZE[0], DataLoader.LOW_IMG_SIZE[1], 1))
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -210,21 +210,21 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=3)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = tf.image.random_brightness(ori_x, max_delta=80.)
+            ori_x = tf.image.random_brightness(ori_x, max_delta=0.5)
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=3)
             query_x = tf.image.resize_images(query_x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = tf.image.random_brightness(query_x, max_delta=80.)
+            query_x = tf.image.random_brightness(query_x, max_delta=0.5)
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -237,7 +237,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -247,7 +247,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -260,7 +260,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -270,7 +270,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -283,7 +283,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -293,7 +293,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -306,28 +306,28 @@ class DataLoader:
             ori_x = tf.image.decode_png(ori_x, channels=3)
             ori_x = tf.image.resize_images(ori_x, size=(56, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             ori_x = tf.random_crop(value=ori_x, size=(DataLoader.LOW_IMG_SIZE[0], DataLoader.LOW_IMG_SIZE[1], 3))
-            ori_x = tf.image.random_brightness(ori_x, max_delta=80.)
+            ori_x = tf.image.random_brightness(ori_x, max_delta=0.5)
             ori_x = tf.image.random_contrast(ori_x, lower=0.2, upper=2.0)
             ori_x = tf.image.random_hue(ori_x, max_delta=0.08)
             ori_x = tf.image.random_saturation(ori_x, lower=0.2, upper=2.0)
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[0])
             query_x = tf.image.decode_png(query_x, channels=3)
             query_x = tf.image.resize_images(query_x, size=(56, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             query_x = tf.random_crop(value=query_x, size=(DataLoader.LOW_IMG_SIZE[0], DataLoader.LOW_IMG_SIZE[1], 3))
-            query_x = tf.image.random_brightness(query_x, max_delta=80.)
+            query_x = tf.image.random_brightness(query_x, max_delta=0.5)
             query_x = tf.image.random_contrast(query_x, lower=0.2, upper=2.0)
             query_x = tf.image.random_hue(query_x, max_delta=0.08)
             query_x = tf.image.random_saturation(query_x, lower=0.2, upper=2.0)
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -339,13 +339,13 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
             query_x = tf.image.resize_images(query_x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -353,16 +353,16 @@ class DataLoader:
         with tf.variable_scope('train_mid_crop'):
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1)
-            ori_x = tf.image.resize_images(ori_x, size=(78, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            ori_x = tf.image.resize_images(ori_x, size=(80, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             ori_x = tf.random_crop(value=ori_x, size=(DataLoader.MID_IMG_SIZE[0], DataLoader.MID_IMG_SIZE[1], 1))
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
-            query_x = tf.image.resize_images(query_x, size=(78, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            query_x = tf.image.resize_images(query_x, size=(80, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             query_x = tf.random_crop(value=query_x, size=(DataLoader.MID_IMG_SIZE[0], DataLoader.MID_IMG_SIZE[1], 1))
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -371,21 +371,21 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=3)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = tf.image.random_brightness(ori_x, max_delta=80.)
+            ori_x = tf.image.random_brightness(ori_x, max_delta=0.5)
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=3)
             query_x = tf.image.resize_images(query_x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = tf.image.random_brightness(query_x, max_delta=80.)
+            query_x = tf.image.random_brightness(query_x, max_delta=0.5)
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -398,7 +398,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -408,7 +408,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -421,7 +421,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -431,7 +431,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -444,7 +444,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -454,7 +454,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -467,28 +467,28 @@ class DataLoader:
             ori_x = tf.image.decode_png(ori_x, channels=3)
             ori_x = tf.image.resize_images(ori_x, size=(78, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             ori_x = tf.random_crop(value=ori_x, size=(DataLoader.MID_IMG_SIZE[0], DataLoader.MID_IMG_SIZE[1], 3))
-            ori_x = tf.image.random_brightness(ori_x, max_delta=80.)
+            ori_x = tf.image.random_brightness(ori_x, max_delta=0.5)
             ori_x = tf.image.random_contrast(ori_x, lower=0.2, upper=2.0)
             ori_x = tf.image.random_hue(ori_x, max_delta=0.08)
             ori_x = tf.image.random_saturation(ori_x, lower=0.2, upper=2.0)
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[0])
             query_x = tf.image.decode_png(query_x, channels=3)
             query_x = tf.image.resize_images(query_x, size=(78, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             query_x = tf.random_crop(value=query_x, size=(DataLoader.MID_IMG_SIZE[0], DataLoader.MID_IMG_SIZE[1], 3))
-            query_x = tf.image.random_brightness(query_x, max_delta=80.)
+            query_x = tf.image.random_brightness(query_x, max_delta=0.5)
             query_x = tf.image.random_contrast(query_x, lower=0.2, upper=2.0)
             query_x = tf.image.random_hue(query_x, max_delta=0.08)
             query_x = tf.image.random_saturation(query_x, lower=0.2, upper=2.0)
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -500,13 +500,13 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
             query_x = tf.image.resize_images(query_x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -514,16 +514,16 @@ class DataLoader:
         with tf.variable_scope('train_high_crop'):
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1)
-            ori_x = tf.image.resize_images(ori_x, size=(102, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            ori_x = tf.image.resize_images(ori_x, size=(100, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             ori_x = tf.random_crop(value=ori_x, size=(DataLoader.HIGH_IMG_SIZE[0], DataLoader.HIGH_IMG_SIZE[1], 1))
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
-            query_x = tf.image.resize_images(query_x, size=(102, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            query_x = tf.image.resize_images(query_x, size=(100, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             query_x = tf.random_crop(value=query_x, size=(DataLoader.HIGH_IMG_SIZE[0], DataLoader.HIGH_IMG_SIZE[1], 1))
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -532,21 +532,21 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=3)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = tf.image.random_brightness(ori_x, max_delta=80.)
+            ori_x = tf.image.random_brightness(ori_x, max_delta=0.5)
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=3)
             query_x = tf.image.resize_images(query_x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = tf.image.random_brightness(query_x, max_delta=80.)
+            query_x = tf.image.random_brightness(query_x, max_delta=0.5)
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -559,7 +559,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -569,7 +569,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -582,7 +582,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -592,7 +592,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -605,7 +605,7 @@ class DataLoader:
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
@@ -615,7 +615,7 @@ class DataLoader:
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -628,28 +628,28 @@ class DataLoader:
             ori_x = tf.image.decode_png(ori_x, channels=3)
             ori_x = tf.image.resize_images(ori_x, size=(102, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             ori_x = tf.random_crop(value=ori_x, size=(DataLoader.HIGH_IMG_SIZE[0], DataLoader.HIGH_IMG_SIZE[1], 3))
-            ori_x = tf.image.random_brightness(ori_x, max_delta=80.)
+            ori_x = tf.image.random_brightness(ori_x, max_delta=0.5)
             ori_x = tf.image.random_contrast(ori_x, lower=0.2, upper=2.0)
             ori_x = tf.image.random_hue(ori_x, max_delta=0.08)
             ori_x = tf.image.random_saturation(ori_x, lower=0.2, upper=2.0)
             ori_x = tf.cast(ori_x, tf.float32)
             ori_x = tf.clip_by_value(ori_x, clip_value_min=0.0, clip_value_max=255.0)
             ori_x = tf.image.rgb_to_grayscale(ori_x)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[0])
             query_x = tf.image.decode_png(query_x, channels=3)
             query_x = tf.image.resize_images(query_x, size=(102, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             query_x = tf.random_crop(value=query_x, size=(DataLoader.HIGH_IMG_SIZE[0], DataLoader.HIGH_IMG_SIZE[1], 3))
-            query_x = tf.image.random_brightness(query_x, max_delta=80.)
+            query_x = tf.image.random_brightness(query_x, max_delta=0.5)
             query_x = tf.image.random_contrast(query_x, lower=0.2, upper=2.0)
             query_x = tf.image.random_hue(query_x, max_delta=0.08)
             query_x = tf.image.random_saturation(query_x, lower=0.2, upper=2.0)
             query_x = tf.cast(query_x, tf.float32)
             query_x = tf.clip_by_value(query_x, clip_value_min=0.0, clip_value_max=255.0)
             query_x = tf.image.rgb_to_grayscale(query_x)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -749,13 +749,13 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
             query_x = tf.image.resize_images(query_x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -764,13 +764,13 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
             query_x = tf.image.resize_images(query_x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 
@@ -779,13 +779,13 @@ class DataLoader:
             ori_x = tf.read_file(x[0])
             ori_x = tf.image.decode_png(ori_x, channels=1)
             ori_x = tf.image.resize_images(ori_x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            ori_x = self.tf_equalize_histogram(ori_x)
+            # ori_x = self.tf_equalize_histogram(ori_x)
             ori_x = tf.divide(tf.cast(ori_x, tf.float32), 255.)
 
             query_x = tf.read_file(x[1])
             query_x = tf.image.decode_png(query_x, channels=1)
             query_x = tf.image.resize_images(query_x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            query_x = self.tf_equalize_histogram(query_x)
+            # query_x = self.tf_equalize_histogram(query_x)
             query_x = tf.divide(tf.cast(query_x, tf.float32), 255.)
         return ori_x, query_x, y
 

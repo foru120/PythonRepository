@@ -68,8 +68,8 @@ class Neuralnet:
 
             if ckpt_st is not None:
                 '''restore 시에는 tf.global_variables_initializer() 가 필요 없다.'''
-                self._restore.restore(sess, ckpt_st.model_checkpoint_path)
-                print('>> Model Restored')
+                # self._restore.restore(sess, ckpt_st.model_checkpoint_path)
+                # print('>> Model Restored')
 
             '''텐서보드 로깅을 위한 FileWriter 생성'''
             if self.is_logging:
@@ -472,8 +472,8 @@ class Neuralnet:
 
     def unit_test(self):
         low_img_size, mid_img_size, high_img_size = (46, 100), (70, 150), (92, 200)
-        right_sample_path = 'G:/04_dataset/eye_verification/eye_dataset_v2/train/right/0'
-        left_sample_path = 'G:/04_dataset/eye_verification/eye_dataset_v2/train/left/0'
+        right_sample_path = 'G:/04_dataset/eye_verification/eye_dataset_v2/train/right/4'
+        left_sample_path = 'G:/04_dataset/eye_verification/eye_dataset_v2/train/left/4'
 
         def get_file_names():
             right_file_names, left_file_names = [], []
@@ -516,7 +516,7 @@ class Neuralnet:
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=low_img_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-                data = tf_equalize_histogram(data)
+                # data = tf_equalize_histogram(data)
                 data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 
@@ -525,7 +525,7 @@ class Neuralnet:
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=mid_img_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-                data = tf_equalize_histogram(data)
+                # data = tf_equalize_histogram(data)
                 data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 
@@ -534,7 +534,7 @@ class Neuralnet:
                 data = tf.read_file(path)
                 data = tf.image.decode_png(data, channels=1, name='decode_img')
                 data = tf.image.resize_images(data, size=high_img_size, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-                data = tf_equalize_histogram(data)
+                # data = tf_equalize_histogram(data)
                 data = tf.divide(tf.cast(data, tf.float32), 255.)
             return data
 

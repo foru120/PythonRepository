@@ -107,7 +107,7 @@ class DataLoader:
         with tf.variable_scope('train_low_crop'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(56, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.resize_images(x, size=(60, 120), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.random_crop(value=x, size=(DataLoader.LOW_IMG_SIZE[0], DataLoader.LOW_IMG_SIZE[1], 1))
             x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
@@ -115,10 +115,15 @@ class DataLoader:
 
     def train_low_brightness(self, x, y):
         with tf.variable_scope('train_low_brightness'):
+            '''
+                tf.image.random_brightness 에서 max_delta 값은 [0, 1) 사이 값으로 지정하고,
+                random 으로 -max_delta ~ +max_delta 사이의 값을 모든 이미지 픽셀 값에 더한다.
+                이때, 기존 이미지를 [0, 1) 사이 값으로 변경한 후 값을 추가한다.
+            '''
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=3, name='decode_img')
             x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.image.random_brightness(x, max_delta=80.)
+            x = tf.image.random_brightness(x, max_delta=0.5)
             x = tf.cast(x, tf.float32)
             x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
@@ -181,7 +186,7 @@ class DataLoader:
         with tf.variable_scope('train_mid_crop'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(78, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.resize_images(x, size=(80, 170), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.random_crop(value=x, size=(DataLoader.MID_IMG_SIZE[0], DataLoader.MID_IMG_SIZE[1], 1))
             x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
@@ -192,7 +197,7 @@ class DataLoader:
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=3, name='decode_img')
             x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.image.random_brightness(x, max_delta=80.)
+            x = tf.image.random_brightness(x, max_delta=0.5)
             x = tf.cast(x, tf.float32)
             x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)
@@ -255,7 +260,7 @@ class DataLoader:
         with tf.variable_scope('train_high_crop'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=(102, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            x = tf.image.resize_images(x, size=(100, 220), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = tf.random_crop(value=x, size=(DataLoader.HIGH_IMG_SIZE[0], DataLoader.HIGH_IMG_SIZE[1], 1))
             x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
@@ -266,7 +271,7 @@ class DataLoader:
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=3, name='decode_img')
             x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
-            x = tf.image.random_brightness(x, max_delta=80.)
+            x = tf.image.random_brightness(x, max_delta=0.5)
             x = tf.cast(x, tf.float32)
             x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)

@@ -58,7 +58,7 @@ class DataLoader:
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
             x = tf.image.resize_images(x, size=DataLoader.IMG_SIZE)
-            x = tf.image.random_brightness(x, max_delta=80.)
+            x = tf.image.random_brightness(x, max_delta=0.5)
             x = tf.cast(x, tf.float32)
             x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
             x = tf.image.rgb_to_grayscale(x)

@@ -222,9 +222,9 @@ class Neuralnet:
             self._saver.save(sess, os.path.join(flags.FLAGS.deploy_log_dir, 'dementia_param'))
 
             '''PB File Save'''
-            builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(flags.FLAGS.deploy_log_dir, 'dementia_cam'))
-            builder.add_meta_graph_and_variables(sess, [tf.saved_model.tag_constants.SERVING])
-            builder.save()
+            # builder = tf.saved_model.builder.SavedModelBuilder(os.path.join(flags.FLAGS.deploy_log_dir, 'dementia_cam'))
+            # builder.add_meta_graph_and_variables(sess, [tf.saved_model.tag_constants.SERVING])
+            # builder.save()
 
 neuralnet = Neuralnet(is_training=False)
 # neuralnet.cam_test(sort='guided_cam')

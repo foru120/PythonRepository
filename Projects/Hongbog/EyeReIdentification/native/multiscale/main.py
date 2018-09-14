@@ -478,6 +478,6 @@ class Neuralnet:
 
 neuralnet = Neuralnet()
 # neuralnet.cam_test()
-neuralnet.train()
+# neuralnet.train()
 # neuralnet.integration_test()
-# neuralnet.unit_test()
+neuralnet.unit_test()
