@@ -4,6 +4,8 @@ import numpy as np
 import re
 
 class DataLoader:
+    IMG_SIZE = (224, 400)
+
     def __init__(self, batch_size, data_path):
         self.batch_size = batch_size
 
@@ -19,35 +21,36 @@ class DataLoader:
         random_sort = np.random.permutation(tot_len)
 
         '''Train/Test Dataset 분리'''
-        train_x = tot_x[random_sort[: int(tot_len * 0.8)]]
-        train_y = [int(re.search('.*\\\\(\d)\_.*\.jpg', x, re.IGNORECASE).group(1)) for x in train_x]
-        test_x = tot_x[int(tot_len * 0.8):]
-        test_y = [int(re.search('.*\\\\(\d)\_.*\.jpg', x, re.IGNORECASE).group(1)) for x in test_x]
+        # train_x = tot_x[random_sort[: int(tot_len * 0.8)]]
+        train_x = tot_x[random_sort]
+        train_y = [int(re.search('.*\/(\d)\_.*\.jpg', x, re.IGNORECASE).group(1)) for x in train_x]
+        # test_x = tot_x[int(tot_len * 0.8):]
+        # test_y = [int(re.search('.*\/(\d)\_.*\.jpg', x, re.IGNORECASE).group(1)) for x in test_x]
 
         self.train_len = train_x.shape[0]
-        self.test_len = test_x.shape[0]
+        # self.test_len = test_x.shape[0]
 
         '''리스트 or 배열 텐서화'''
         with tf.variable_scope('file_path_list'):
             self.train_x = tf.convert_to_tensor(train_x, dtype=tf.string, name='train_x')
             self.train_y = tf.convert_to_tensor(train_y, dtype=tf.int32, name='train_y')
-            self.test_x = tf.convert_to_tensor(test_x, dtype=tf.string, name='test_x')
-            self.test_y = tf.convert_to_tensor(test_y, dtype=tf.int32, name='test_y')
+            # self.test_x = tf.convert_to_tensor(test_x, dtype=tf.string, name='test_x')
+            # self.test_y = tf.convert_to_tensor(test_y, dtype=tf.int32, name='test_y')
 
     def train_normal(self, x, y):
         with tf.variable_scope('train_normal'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.decode_jpeg(x, channels=1, name='decode_img')
+            x = tf.image.resize_images(x, size=DataLoader.IMG_SIZE)
             x = tf.divide(x, 255.)
         return x, y
 
     def train_random_crop(self, x, y):
         with tf.variable_scope('train_random_crop'):
             x = tf.read_file(x)
-            x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(250, 250))
-            x = tf.random_crop(value=x, size=(224, 224, 3))
+            x = tf.image.decode_jpeg(x, channels=1, name='decode_img')
+            x = tf.image.resize_images(x, size=(240, 440))
+            x = tf.random_crop(value=x, size=(DataLoader.IMG_SIZE[0], DataLoader.IMG_SIZE[1], 1))
             x = tf.divide(x, 255.)
         return x, y
 
@@ -55,8 +58,11 @@ class DataLoader:
         with tf.variable_scope('train_random_brightness'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(224, 224))
-            x = tf.image.random_brightness(x, max_delta=0.5)
+            x = tf.image.resize_images(x, size=DataLoader.IMG_SIZE)
+            x = tf.image.random_brightness(x, max_delta=30.)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
+            x = tf.image.rgb_to_grayscale(x)
             x = tf.divide(x, 255.)
         return x, y
 
@@ -64,8 +70,11 @@ class DataLoader:
         with tf.variable_scope('train_random_contrast'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.resize_images(x, size=DataLoader.IMG_SIZE)
             x = tf.image.random_contrast(x, lower=0.2, upper=2.0)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
+            x = tf.image.rgb_to_grayscale(x)
             x = tf.divide(x, 255.)
         return x, y
 
@@ -73,8 +82,11 @@ class DataLoader:
         with tf.variable_scope('train_random_hue'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.resize_images(x, size=DataLoader.IMG_SIZE)
             x = tf.image.random_hue(x, max_delta=0.08)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
+            x = tf.image.rgb_to_grayscale(x)
             x = tf.divide(x, 255.)
         return x, y
 
@@ -82,8 +94,11 @@ class DataLoader:
         with tf.variable_scope('train_random_saturation'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.resize_images(x, size=DataLoader.IMG_SIZE)
             x = tf.image.random_saturation(x,lower=0.2, upper=2.0)
+            x = tf.cast(x, tf.float32)
+            x = tf.clip_by_value(x, clip_value_min=0.0, clip_value_max=255.0)
+            x = tf.image.rgb_to_grayscale(x)
             x = tf.divide(x, 255.)
         return x, y
 
@@ -122,7 +137,7 @@ class DataLoader:
         with tf.variable_scope('test_normal'):
             x = tf.read_file(x)
             x = tf.image.decode_jpeg(x, channels=3, name='decode_img')
-            x = tf.image.resize_images(x, size=(224, 224))
+            x = tf.image.resize_images(x, size=DataLoader.IMG_SIZE)
             x = tf.divide(x, 255.)
         return x, y
 

@@ -1,4 +1,4 @@
-from DeepLearningTechniques.MobileNet_v2.constants import *
+from Projects.DeepLearningTechniques.MobileNet_v2.constants import *
 import tensorflow.contrib.slim as slim
 
 class Layers:
@@ -98,7 +98,7 @@ class Model(Layers):
     def build(self):
         with tf.variable_scope(name_or_scope=self.name):
             with tf.variable_scope(name_or_scope='input_module'):
-                self.x = tf.placeholder(dtype=tf.float32, shape=[None, 224, 224, 3], name='x')
+                self.x = tf.placeholder(dtype=tf.float32, shape=[None, 224, 400, 1], name='x')
                 self.y = tf.placeholder(dtype=tf.int64, shape=[None], name='y')
 
             with tf.variable_scope(name_or_scope='mobilenet_v2_module'):
