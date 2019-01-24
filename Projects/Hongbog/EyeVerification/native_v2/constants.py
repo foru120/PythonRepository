@@ -42,7 +42,7 @@ flags.DEFINE_integer('epochs',
                      '훈련 시 총 에폭 수')
 
 flags.DEFINE_integer('batch_size',
-                     100,
+                     50,
                      '훈련 시 배치 크기')
 
 flags.DEFINE_float('dropout_rate',

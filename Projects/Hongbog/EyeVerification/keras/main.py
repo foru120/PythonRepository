@@ -31,7 +31,7 @@ test_datagen = ImageDataGenerator(
 #todo Right Generator 설정
 for gen_info in zip(right_gen_name, image_scale):
     train_right_gen[gen_info[0]] = train_datagen.flow_from_directory(
-        directory='G:/04_dataset/eye_verification/eye_only_v3/train/right',
+        directory='G:/04_dataset/eye_verification/eye_dataset_v1/train/right',
         target_size=gen_info[1],
         color_mode='grayscale',
         batch_size=50,
@@ -41,7 +41,7 @@ for gen_info in zip(right_gen_name, image_scale):
     )
 
     test_right_gen[gen_info[0]] = test_datagen.flow_from_directory(
-        directory='G:/04_dataset/eye_verification/eye_only_v3/test/right',
+        directory='G:/04_dataset/eye_verification/eye_dataset_v1/test/right',
         target_size=gen_info[1],
         color_mode='grayscale',
         batch_size=50,
@@ -53,7 +53,7 @@ for gen_info in zip(right_gen_name, image_scale):
 # todo Left Generator 설정
 for gen_info in zip(right_gen_name, image_scale):
     train_left_gen[gen_info[0]] = train_datagen.flow_from_directory(
-        directory='G:/04_dataset/eye_verification/eye_only_v3/train/left',
+        directory='G:/04_dataset/eye_verification/eye_dataset_v1/train/left',
         target_size=gen_info[1],
         color_mode='grayscale',
         batch_size=50,
@@ -63,7 +63,7 @@ for gen_info in zip(right_gen_name, image_scale):
     )
 
     test_left_gen[gen_info[0]] = test_datagen.flow_from_directory(
-        directory='G:/04_dataset/eye_verification/eye_only_v3/test/left',
+        directory='G:/04_dataset/eye_verification/eye_dataset_v1/test/left',
         target_size=gen_info[1],
         color_mode='grayscale',
         batch_size=50,
@@ -158,16 +158,16 @@ model.fit_generator(
 )
 
 #todo keras evaluate
-# tf.reset_default_graph()
-#
-# neuralnet = NeuralNet('right')
-# model = Model(inputs=[neuralnet.low_res_X, neuralnet.mid_res_X, neuralnet.high_res_X],
-#               outputs=neuralnet.prob)
-#
-# optimizer = optimizers.Adam(lr=0.005, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0)
-# model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
-#
-# model.load_weights('D:/Source/PythonRepository/Projects/Hongbog/EyeVerification/keras/train_log/eye_verification.h5')
+tf.reset_default_graph()
+
+neuralnet = NeuralNet('right')
+model = Model(inputs=[neuralnet.low_res_X, neuralnet.mid_res_X, neuralnet.high_res_X],
+              outputs=neuralnet.prob)
+
+optimizer = optimizers.Adam(lr=0.005, beta_1=0.9, beta_2=0.999, epsilon=None, decay=0)
+model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
+
+model.load_weights('D:/Source/PythonRepository/Projects/Hongbog/EyeVerification/keras/train_log/eye_verification.h5')
 
 print('-- Evaluate --')
 K.set_learning_phase(False)

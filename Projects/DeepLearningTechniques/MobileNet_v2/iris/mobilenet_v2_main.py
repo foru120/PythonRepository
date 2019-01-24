@@ -1,7 +1,6 @@
-from Projects.DeepLearningTechniques.MobileNet_v2.constants import *
-from Projects.DeepLearningTechniques.MobileNet_v2.dataloader import DataLoader
-from Projects.DeepLearningTechniques.MobileNet_v2.mobilenet_v2_model import *
-from Projects.DeepLearningTechniques.MobileNet_v2.cam import GradCAM, GuidedGradCAM
+from Projects.DeepLearningTechniques.MobileNet_v2.iris.dataloader import DataLoader
+from Projects.DeepLearningTechniques.MobileNet_v2.iris.mobilenet_v2_model import *
+from Projects.DeepLearningTechniques.MobileNet_v2.iris.cam import GradCAM, GuidedGradCAM
 
 import numpy as np
 import time

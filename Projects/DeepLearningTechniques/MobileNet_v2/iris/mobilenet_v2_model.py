@@ -1,4 +1,4 @@
-from Projects.DeepLearningTechniques.MobileNet_v2.constants import *
+from Projects.DeepLearningTechniques.MobileNet_v2.iris.constants import *
 import tensorflow.contrib.slim as slim
 
 class Layers:

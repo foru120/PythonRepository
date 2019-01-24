@@ -58,6 +58,7 @@ class Trainer(object):
         with tf.variable_scope(name_or_scope=self.orientation):
             tf.logging.set_verbosity(tf.logging.INFO)
 
+
             """Train Model Part"""
             self._train_dataset()
 
