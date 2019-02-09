@@ -24,7 +24,7 @@ class Trainer:
         self._loader = DataLoader()
         print('>> The data loader has been initialized.')
 
-        self._utils = MultiGPU()
+        self._multi_gpu = MultiGPU()
         print('>> MultiGPU class has been initialized.')
 
     def train(self):
@@ -32,16 +32,9 @@ class Trainer:
             os.environ['CUDA_VISIBLE_DEVICES'] = 'PCI_BUS_ID'
             os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
+            train_step_num = (50000 // flags.FLAGS.batch_size)
+
             #todo Data Loader Initialization
-            self._loader.init_train()
-            self._loader.init_test()
-
-            train_step_num = int(self._loader.train_len / flags.FLAGS.batch_size / flags.FLAGS.num_gpus)
-            # test_step_num = int(self._loader.test_len / flags.FLAGS.batch_size / flags.FLAGS.num_gpus)
-
-            train_x, train_y = self._loader.train_loader()
-            # test_x, test_y = self._loader.test_loader()
-
             global_step = tf.get_variable('global_step', [],
                                           initializer=tf.constant_initializer(0), trainable=False)
 
@@ -49,25 +42,27 @@ class Trainer:
 
             opt = tf.train.RMSPropOptimizer(learning_rate=decay_lr, momentum=0.9, epsilon=1.0)
 
-            grads, loss, summaries = self._utils.init_tower(num_gpus=flags.FLAGS.num_gpus,
-                                                            train_x=train_x,
-                                                            train_y=train_y,
-                                                            opt=opt)
+            train_x, train_y = self._loader.train_batch()
 
-            summaries.append(tf.summary.scalar('lr', decay_lr))
+            batch_queue = tf.contrib.slim.prefetch_queue.prefetch_queue(
+                [train_x, train_y], capacity=2 * flags.FLAGS.num_gpus
+            )
+
+            acc, loss = self._multi_gpu.init_tower(num_gpus=flags.FLAGS.num_gpus,
+                                                   batch_queue=batch_queue,
+                                                   opt=opt)
+
+            self._multi_gpu.summaries.append(tf.summary.scalar('lr', decay_lr))
 
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
-            update_ops.append(opt.apply_gradients(grads, global_step=global_step))
-
-            update_ops = tf.group(*update_ops)
-
-            with tf.control_dependencies([update_ops]):
-                train_tensor = tf.identity(loss)
+            with tf.control_dependencies(update_ops):
+                train_op = opt.apply_gradients(self._multi_gpu.grads, global_step=global_step)
 
             saver = tf.train.Saver(tf.global_variables())
 
-            summary_op = tf.summary.merge(summaries)
+            # summary_op = tf.summary.merge(self._multi_gpu.summaries)
+            summary_op = tf.summary.merge_all()
 
             config = tf.ConfigProto(
                 gpu_options=tf.GPUOptions(allow_growth=True,  # GPU 메모리 증분 할당
@@ -80,21 +75,26 @@ class Trainer:
             with tf.Session(config=config) as sess:
                 sess.run(tf.global_variables_initializer())
 
-                tf.train.start_queue_runners(sess=sess)
+                coord = tf.train.Coordinator()
+                threads = tf.train.start_queue_runners(coord=coord)
 
                 summary_writer = tf.summary.FileWriter(flags.FLAGS.tensorboard_log_path, sess.graph)
 
                 for step in range(flags.FLAGS.epochs * train_step_num):
                     step_start_time = time.time()
-                    _, step_loss = sess.run([train_tensor, loss])
+                    _, step_acc, step_loss = sess.run([train_op, acc, loss])
                     step_end_time = time.time()
-                    print('[Step-%d], loss: %.4f, time: %.3f' % (step, step_loss, (step_end_time-step_start_time)/flags.FLAGS.num_gpus))
+                    print('[Epoch-%d]/[Step-%d], acc: %.4f, loss: %.4f, time: %.3f'
+                          % ((step // train_step_num)+1, step % train_step_num, step_acc, step_loss, (step_end_time - step_start_time) / flags.FLAGS.num_gpus))
 
-                    if step % 100 == 0:
+                    if step % 100 == 0 or (step + 1) == flags.FLAGS.epochs * train_step_num:
                         summary_writer.add_summary(sess.run(summary_op), step)
 
                     if step % 1000 == 0 or (step + 1) == flags.FLAGS.epochs * train_step_num:
-                        saver.save(sess, os.path.join(flags.FLAGS.train_log_path, 'model.ckpt'), global_step=step)
+                        saver.save(sess, os.path.join(flags.FLAGS.train_log_path, 'multigpu_model.ckpt'), global_step=step)
+
+                coord.request_stop()
+                coord.join(threads)
             tot_end_time = time.time()
 
             print('>>> Total Train Time: %.3f' % (tot_end_time - tot_start_time))

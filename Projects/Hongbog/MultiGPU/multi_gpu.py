@@ -1,3 +1,5 @@
+import re
+
 from Projects.Hongbog.MultiGPU.model import Model
 from Projects.Hongbog.MultiGPU.constants import *
 
@@ -5,41 +7,57 @@ class MultiGPU:
     def __init__(self):
         self.model = Model()
 
-    def init_tower(self, num_gpus, train_x, train_y, opt):
+    def init_tower(self, num_gpus, batch_queue, opt):
         tower_grads = []
+
         with tf.variable_scope(tf.get_variable_scope()):
             for i in range(num_gpus):
                 with tf.device('/gpu:%d' % i):
                     with tf.name_scope('%s_%d' % (flags.FLAGS.tower_name, i)) as scope:
-                        # x_batch, y_batch = batch_queue.dequeue()
+                        train_x, train_y = batch_queue.dequeue()
 
-                        loss = self._tower_loss(x_batch=train_x, y_batch=train_y, scope=scope)
+                        logits = self.model.build_graph(x_batch=train_x)
+
+                        acc, loss = self._tower_metrics(x_batch=logits, y_batch=train_y, scope=scope)
 
                         tf.get_variable_scope().reuse_variables()
 
-                        summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
+                        self.summaries = tf.get_collection(tf.GraphKeys.SUMMARIES, scope)
 
                         grads = opt.compute_gradients(loss, colocate_gradients_with_ops=True)
 
                         tower_grads.append(grads)
 
-        grads = self._avg_grads(tower_grads=tower_grads)
+        self.grads = self._avg_grads(tower_grads=tower_grads)
 
-        for grad, var in grads:
+        for grad, var in self.grads:
             if grad is not None:
-                summaries.append(tf.summary.histogram(var.op.name + '/grad', grad))
+                self.summaries.append(tf.summary.histogram(var.op.name + '/grad', grad))
 
         for var in tf.trainable_variables():
-            summaries.append(tf.summary.histogram(var.op.name, var))
+            self.summaries.append(tf.summary.histogram(var.op.name, var))
 
-        return grads, loss, summaries
+        return acc, loss
 
-    def _tower_loss(self, x_batch, y_batch, scope):
-        logits = self.model.build_graph(x_batch)
+    def _tower_metrics(self, x_batch, y_batch, scope):
+        # self.model.loss(logits=x_batch, labels=y_batch)
+        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
+            labels=y_batch, logits=x_batch, name='cross_entropy_per_example')
+        cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
+        tf.add_to_collection('losses', cross_entropy_mean)
 
-        tot_loss = self.model.loss(logits=logits, labels=y_batch, scope=scope)
+        ce_loss = tf.get_collection('losses', scope)
+        tot_loss = tf.add_n(ce_loss, name='tot_loss')
+        # l2_loss = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=scope)
+        # tot_loss = tf.add_n(ce_loss + l2_loss, name='tot_loss')
 
-        return tot_loss
+        for l in ce_loss + [tot_loss]:
+            loss_name = re.sub('%s_[0-9]*/' % flags.FLAGS.tower_name, '', l.op.name)
+            tf.summary.scalar(loss_name, l)
+
+        acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(x_batch, -1), y_batch), dtype=tf.float32))
+
+        return acc, tot_loss
 
     def _avg_grads(self, tower_grads):
         avg_grads = []

@@ -38,7 +38,7 @@ class Model:
             self.cam_layer = x
 
             x = tf.reduce_mean(x, axis=[1, 2], keepdims=False, name='global_avg_pool_5')
-            logits = self.dense(inputs=x, units=flags.FLAGS.image_class, name='dense_5')
+            logits = self.dense(inputs=x, units=flags.FLAGS.num_classes, name='dense_5')
 
         return logits
 
@@ -144,15 +144,18 @@ class Model:
         tf.summary.scalar(tensor_name + '/sparsity', tf.nn.zero_fraction(x))
 
     def loss(self, logits, labels, scope):
-        ce_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels, name='ce_loss'))
-        l2_loss = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=scope)
-        tot_loss = tf.add_n([ce_loss] + l2_loss, name='tot_loss')
+        ce_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels), name='ce_loss')
 
-        tf.add_to_collection('ce_loss', ce_loss)
-        tf.add_to_collection('tot_loss', tot_loss)
-
-        for l in tf.get_collection('ce_loss', scope) + [tot_loss]:
-            loss_name = re.sub('%s_[0_9]*/' % flags.FLAGS.tower_name, '', l.op.name)
-            tf.summary.scalar(loss_name, l)
-
-        return tot_loss
+        tf.add_to_collection('losses', ce_loss)
+        # ce_loss = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels, name='ce_loss'))
+        # l2_loss = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=scope)
+        # tot_loss = tf.add_n([ce_loss] + l2_loss, name='tot_loss')
+        #
+        # tf.add_to_collection('ce_loss', ce_loss)
+        # tf.add_to_collection('tot_loss', tot_loss)
+        #
+        # for l in tf.get_collection('ce_loss', scope) + [tot_loss]:
+        #     loss_name = re.sub('%s_[0_9]*/' % flags.FLAGS.tower_name, '', l.op.name)
+        #     tf.summary.scalar(loss_name, l)
+        #
+        # return tot_loss
