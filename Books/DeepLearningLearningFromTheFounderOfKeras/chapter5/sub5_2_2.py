@@ -1,3 +1,7 @@
+#todo p.183 ~ p.186
+#todo code 5-4 ~ code 5-4
+#todo 5.2.2 데이터 내려받기
+
 import os, shutil
 
 #todo 원본 데이터 셋 위치

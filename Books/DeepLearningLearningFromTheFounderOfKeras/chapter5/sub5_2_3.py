@@ -1,3 +1,7 @@
+#todo p.187 ~ p.197
+#todo code 5-5 ~ code 5-15
+#todo 5.2.3 네트워크 구성하기
+
 import os
 import matplotlib.pyplot as plt
 
@@ -57,7 +61,7 @@ model.compile(loss='binary_crossentropy',
 history = model.fit_generator(
     train_generator,
     steps_per_epoch=100,
-    epochs=100,
+    epochs=20,
     validation_data=validation_generator,
     validation_steps=50
 )
