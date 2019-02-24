@@ -1,7 +1,7 @@
 import re
 
-from Projects.Hongbog.MultiGPU.model import Model
-from Projects.Hongbog.MultiGPU.constants import *
+from Projects.Hongbog.MultiLabel.model import Model
+from Projects.Hongbog.MultiLabel.constants import *
 
 class MultiGPU:
     def __init__(self):
@@ -40,10 +40,11 @@ class MultiGPU:
         return acc, loss
 
     def _tower_metrics(self, x_batch, y_batch, scope):
-        cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
-            labels=y_batch, logits=x_batch, name='cross_entropy_per_example')
-        cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
-        tf.add_to_collection('losses', cross_entropy_mean)
+        binary_crossentropy = tf.nn.sigmoid_cross_entropy_with_logits(
+            labels=y_batch, logits=x_batch, name='sigmoid_binary_cross_entropy'
+        )
+        binary_crossentropy_mean = tf.reduce_mean(binary_crossentropy, name='binary_cross_entropy')
+        tf.add_to_collection('losses', binary_crossentropy_mean)
 
         ce_loss = tf.get_collection('losses', scope)
         l2_loss = tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES, scope=scope)
@@ -53,7 +54,9 @@ class MultiGPU:
             loss_name = re.sub('%s_[0-9]*/' % flags.FLAGS.tower_name, '', l.op.name)
             tf.summary.scalar(loss_name, l)
 
-        acc = tf.reduce_mean(tf.cast(tf.equal(tf.argmax(x_batch, -1), y_batch), dtype=tf.float32))
+        acc = tf.reduce_mean(tf.cast(tf.equal(tf.round(tf.nn.sigmoid(x_batch)), y_batch), dtype=tf.float32))
+
+        # acc = tf.reduce_mean(tf.reduce_min(tf.cast(tf.equal(tf.round(tf.nn.sigmoid(x_batch)), y_batch), dtype=tf.float32), 1))
 
         return acc, tot_loss
 

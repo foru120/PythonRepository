@@ -1,5 +1,5 @@
 import re
-from Projects.Hongbog.MultiGPU.constants import *
+from Projects.Hongbog.MultiLabel.constants import *
 
 class Model:
 
@@ -16,7 +16,7 @@ class Model:
             self.is_train = tf.Variable(initial_value=True, dtype=tf.bool, trainable=False, name='is_train')
 
         with tf.variable_scope(name_or_scope='body_scope'):
-            x = self.conv2d(inputs=x_batch, filters=self.filter_num, kernel_size=3, strides=1, name='conv2d_0')
+            x = self.conv2d(inputs=x_batch, filters=self.filter_num, kernel_size=3, strides=2, name='conv2d_0')
             x = self.batch_norm(inputs=x, name='conv2d_0_batch')
 
             # todo shake stage-1

@@ -403,7 +403,7 @@ class DataLoader:
         with tf.variable_scope('test_low_normal'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE)
+            x = tf.image.resize_images(x, size=DataLoader.LOW_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
@@ -412,7 +412,7 @@ class DataLoader:
         with tf.variable_scope('test_mid_normal'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE)
+            x = tf.image.resize_images(x, size=DataLoader.MID_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y
@@ -421,7 +421,7 @@ class DataLoader:
         with tf.variable_scope('test_high_normal_data'):
             x = tf.read_file(x)
             x = tf.image.decode_png(x, channels=1, name='decode_img')
-            x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE)
+            x = tf.image.resize_images(x, size=DataLoader.HIGH_IMG_SIZE, method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
             x = self.tf_equalize_histogram(x)
             x = tf.divide(tf.cast(x, tf.float32), 255.)
         return x, y

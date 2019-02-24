@@ -32,11 +32,32 @@ class DataLoader:
             train_x, train_y = tf.train.batch(
                 [image, label],
                 batch_size=self.batch_size,
-                num_threads=3,
+                num_threads=16,
                 capacity=5 * self.batch_size
             )
 
         return train_x, train_y
+
+    def test_batch(self):
+        with tf.variable_scope(name_or_scope='test_data_loader'):
+            #todo TFRecord Dataset Initialization
+            test_data_path = os.path.join(self.root_data_path, 'test')
+            dataset = self._get_dataset(data_path=test_data_path, type='test')
+
+            provider = slim.dataset_data_provider.DatasetDataProvider(dataset, shuffle=True)
+            [image, label] = provider.get(['image', 'label'])
+
+            #todo Image Augmentation & Normalization
+            image = self.normal_image(image)
+
+            test_x, test_y = tf.train.batch(
+                [image, label],
+                batch_size=self.batch_size,
+                num_threads=8,
+                capacity=5 * self.batch_size
+            )
+
+        return test_x, test_y
 
     def _get_num_samples(self, data_path):
         num_samples = 0
@@ -82,12 +103,28 @@ class DataLoader:
     def distorted_image(self, image):
         with tf.variable_scope(name_or_scope='distorted_image'):
             image = tf.cast(image, tf.float32)
-            image = tf.image.resize_images(images=image, size=(self.image_height + 5, self.image_width + 5), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            # image = tf.image.resize_images(images=image, size=(self.image_height + 5, self.image_width + 5), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            image = tf.image.resize_image_with_crop_or_pad(image=image, target_height=self.image_height + 4, target_width=self.image_width + 4)
+            # image = tf.image.resize_image_with_pad(image=image, target_height=self.image_height + 4, target_width=self.image_width + 4)
             image = tf.random_crop(value=image, size=(self.image_height, self.image_width, 3))
             image = tf.image.random_flip_left_right(image)
             image = tf.image.random_brightness(image, max_delta=63)
             image = tf.image.random_contrast(image, lower=0.2, upper=1.8)
-            image = tf.image.per_image_standardization(image)
+            image = tf.divide(image, 255.)
+            image = tf.subtract(image, [0.4914, 0.4822, 0.4465])
+            image = tf.divide(image, [0.2470, 0.2435, 0.2616])
+            # image = tf.image.per_image_standardization(image)
+
+        return image
+
+    def normal_image(self, image):
+        with tf.variable_scope(name_or_scope='normal_image'):
+            image = tf.cast(image, tf.float32)
+            image = tf.image.resize_images(images=image, size=(self.image_height, self.image_width), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+            image = tf.divide(image, 255.)
+            image = tf.subtract(image, [0.4914, 0.4822, 0.4465])
+            image = tf.divide(image, [0.2470, 0.2435, 0.2616])
+            # image = tf.image.per_image_standardization(image)
 
         return image
 
