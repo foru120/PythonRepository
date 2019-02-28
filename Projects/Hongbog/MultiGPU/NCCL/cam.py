@@ -1,9 +1,8 @@
-import tensorflow as tf
 from PIL import Image
 import numpy as np
 import cv2
 
-from Projects.Hongbog.MultiGPU.constants import *
+from Projects.Hongbog.MultiGPU.NCCL.constants import *
 
 class GradCAM:
     def __init__(self, instance, sample_size, name='grad_cam'):

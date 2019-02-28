@@ -1,7 +1,7 @@
 import re
 
-from Projects.Hongbog.MultiGPU.model import Model
-from Projects.Hongbog.MultiGPU.constants import *
+from Projects.Hongbog.MultiGPU.Basic.model import Model
+from Projects.Hongbog.MultiGPU.Basic.constants import *
 
 class MultiGPU:
     def __init__(self):

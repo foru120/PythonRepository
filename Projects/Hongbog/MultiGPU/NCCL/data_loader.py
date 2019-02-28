@@ -1,10 +1,9 @@
-import numpy as np
 import os
 import matplotlib.pyplot as plt
 
 import tensorflow.contrib.slim as slim
 
-from Projects.Hongbog.MultiGPU.constants import *
+from Projects.Hongbog.MultiGPU.NCCL.constants import *
 
 class DataLoader:
     # todo train/test => (클래스 당 5000/1000)

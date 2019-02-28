@@ -1,5 +1,5 @@
 import re
-from Projects.Hongbog.MultiGPU.constants import *
+from Projects.Hongbog.MultiGPU.Basic.constants import *
 
 class Model:
 

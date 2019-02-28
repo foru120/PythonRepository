@@ -2,9 +2,9 @@ import os
 import time
 import numpy as np
 
-from Projects.Hongbog.MultiGPU.constants import *
-from Projects.Hongbog.MultiGPU.data_loader import DataLoader
-from Projects.Hongbog.MultiGPU.multi_gpu import MultiGPU
+from Projects.Hongbog.MultiGPU.Basic.constants import *
+from Projects.Hongbog.MultiGPU.Basic.data_loader import DataLoader
+from Projects.Hongbog.MultiGPU.Basic.multi_gpu import MultiGPU
 
 """
     ▣ ShakeNet 신경망
