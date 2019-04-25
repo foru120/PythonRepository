@@ -38,6 +38,7 @@ class Trainer:
         var_by_name = dict([(v.name, v) for v in all_vars])
         post_init_ops = []
         for v in all_vars:
+            print(v.name)
             if not v.name.startswith('tower'):
                 continue
             if v.name.startswith('tower0'):

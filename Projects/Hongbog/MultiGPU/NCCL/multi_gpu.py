@@ -72,7 +72,7 @@ class MultiGPU:
         Args:
             grad_list: K x N x 2
         Returns:
-            K x N: gradients
+            K x N: gradientsExiting with failure status due to previous errors
             K x N: variables
         """
         g = []
